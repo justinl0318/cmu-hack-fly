@@ -2,6 +2,7 @@
 
 A browser-based QWOP-inspired fruit fly flight experiment. Six flight keys mapped to ten neural channels stimulate real MaleCNS pathways, and the resulting modeled motor activity drives arcade wing forces. It is a small connectome-based prototype, not a whole-brain emulation or validated fly biomechanics model.
 
+## Demo video
 https://drive.google.com/drive/folders/10_SxoLZPDzmfLvDsFfw8lw2XMBaXVp_Y?usp=drive_link
 
 ## Run
