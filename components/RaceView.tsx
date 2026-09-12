@@ -6,7 +6,9 @@ import { RINGS, type FlightState } from '@/lib/simulation';
 export default function RaceView({ state }: { state: FlightState }) {
   const host = useRef<HTMLDivElement>(null);
   const latest = useRef(state);
-  latest.current = state;
+  useEffect(() => {
+    latest.current = state;
+  }, [state]);
   const [error, setError] = useState('');
   useEffect(() => {
     if (!host.current) return;
@@ -15,7 +17,7 @@ export default function RaceView({ state }: { state: FlightState }) {
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true });
     } catch {
-      setError('WebGL is unavailable on this device.');
+      queueMicrotask(() => setError('WebGL is unavailable on this device.'));
       return;
     }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));

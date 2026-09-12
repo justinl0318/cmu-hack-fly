@@ -15,8 +15,30 @@ const COLORS = [
   '#efca80',
   '#d5e895',
 ];
+export interface Circuit {
+  source: string;
+  sourceUrl: string;
+  license: string;
+  neurons: {
+    id: string;
+    name: string;
+    side?: string;
+    type?: string;
+    points: number[][];
+    segments: number[][];
+  }[];
+  edges: { source: string; target: string; weight: number }[];
+  channels: {
+    id: string;
+    inputIds: string[];
+    outputIds: string[];
+    pathIds: string[];
+    motorType?: string;
+    side?: string;
+  }[];
+}
 type Props = {
-  circuit: any;
+  circuit: Circuit;
   spikes: string[];
   activations: number[];
   replay?: boolean;
@@ -24,7 +46,9 @@ type Props = {
 export default function BrainView(props: Props) {
   const container = useRef<HTMLDivElement>(null);
   const latest = useRef(props);
-  latest.current = props;
+  useEffect(() => {
+    latest.current = props;
+  }, [props]);
   const [error, setError] = useState('');
   const [selected, setSelected] = useState('');
   useEffect(() => {
@@ -34,11 +58,17 @@ export default function BrainView(props: Props) {
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     } catch {
-      setError('WebGL is unavailable. Neural simulation is still active.');
+      queueMicrotask(() =>
+        setError('WebGL is unavailable. Neural simulation is still active.'),
+      );
       return;
     }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     host.appendChild(renderer.domElement);
+    renderer.domElement.setAttribute(
+      'aria-label',
+      'Interactive MaleCNS neuron subset. Drag to orbit, scroll to zoom, click to identify neurons.',
+    );
     renderer.domElement.style.cssText =
       'width:100%;height:100%;display:block;touch-action:none';
     const scene = new THREE.Scene();
@@ -63,48 +93,23 @@ export default function BrainView(props: Props) {
     }[] = [];
     for (let n = 0; n < neurons.length; n++) {
       const neuron = neurons[n];
-      const points = neuron.nodes ?? neuron.points ?? neuron.skeleton ?? [];
+      const points = neuron.points;
       const indexed = new Map<number, THREE.Vector3>();
       const samples: THREE.Vector3[] = [];
       for (let j = 0; j < points.length; j++) {
         const p = points[j];
-        const pos = Array.isArray(p)
-          ? new THREE.Vector3(
-              p.length >= 7 ? p[2] : p[0],
-              p.length >= 7 ? p[3] : p[1],
-              p.length >= 7 ? p[4] : p[2],
-            )
-          : new THREE.Vector3(p.x, p.y, p.z);
+        const pos = new THREE.Vector3(p[0], p[1], p[2]);
         if (!Number.isFinite(pos.x + pos.y + pos.z)) continue;
-        indexed.set(
-          Array.isArray(p) && p.length >= 7 ? p[0] : (p.id ?? j),
-          pos,
-        );
+        indexed.set(j, pos);
         samples.push(pos);
         bounds.expandByPoint(pos);
       }
       const segments: number[] = [];
-      if (neuron.segments)
-        for (const seg of neuron.segments) {
-          if (Array.isArray(seg) && seg.length === 6) segments.push(...seg);
-          else if (Array.isArray(seg) && seg.length === 2) {
-            const a = indexed.get(seg[0]),
-              b = indexed.get(seg[1]);
-            if (a && b) segments.push(...a.toArray(), ...b.toArray());
-          }
-        }
-      else
-        for (let j = 0; j < points.length; j++) {
-          const p = points[j];
-          const id = Array.isArray(p) && p.length >= 7 ? p[0] : (p.id ?? j);
-          const parent =
-            Array.isArray(p) && p.length >= 7
-              ? p[6]
-              : (p.parent ?? p.parentId ?? -1);
-          const a = indexed.get(id),
-            b = indexed.get(parent);
-          if (a && b) segments.push(...a.toArray(), ...b.toArray());
-        }
+      for (const [aIndex, bIndex] of neuron.segments) {
+        const a = indexed.get(aIndex),
+          b = indexed.get(bIndex);
+        if (a && b) segments.push(...a.toArray(), ...b.toArray());
+      }
       // Follow a connected path through the actual morphology rather than point-file order.
       let travel = samples;
       if (neuron.segments?.length && neuron.segments[0].length === 2) {
@@ -139,19 +144,14 @@ export default function BrainView(props: Props) {
         }
       }
       raw.push({
-        id: String(neuron.id ?? neuron.bodyId ?? n),
-        label:
-          neuron.name ?? neuron.label ?? neuron.type ?? String(neuron.id ?? n),
-        channel:
-          neuron.channel ??
-          Math.max(
-            0,
-            (props.circuit.channels ?? []).findIndex((c: any) =>
-              (
-                c.pathIds ?? [...(c.inputIds ?? []), ...(c.outputIds ?? [])]
-              ).includes(String(neuron.id)),
-            ),
+        id: neuron.id,
+        label: neuron.name,
+        channel: Math.max(
+          0,
+          props.circuit.channels.findIndex((c) =>
+            c.pathIds.includes(neuron.id),
           ),
+        ),
         segments,
         samples: travel,
       });
@@ -292,8 +292,6 @@ export default function BrainView(props: Props) {
   }, [props.circuit]);
   return (
     <div
-      role="img"
-      aria-label="Interactive three-dimensional MaleCNS neuron subset. Drag to orbit and click a neuron to identify it."
       style={{
         position: 'relative',
         width: '100%',

@@ -135,7 +135,7 @@ export default function Home() {
     fetch('/data/circuit.json')
       .then((r) => {
         if (!r.ok) throw Error('Circuit data is unavailable.');
-        return r.json();
+        return r.json() as Promise<Circuit>;
       })
       .then((data) => {
         if (live) {
