@@ -1,48 +1,48 @@
 'use client';
 
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { FINISH_Z } from '@/lib/kitchen';
 import type { FlightState } from '@/lib/simulation';
 
 export const LESSONS = [
   {
-    title: 'Build a wingbeat',
-    keys: ['Q', 'W', 'A', 'S'],
+    title: 'Two hands, two wings',
+    keys: ['W', 'O'],
     action:
-      'Click Prepare for takeoff, then hold Q + W and A + S together. Keep them held until you lift off.',
-    why: 'Q/W power the left wing; A/S power the right. Both wings need power and recovery. The launch stays safe until all four muscle outputs respond.',
-    cue: 'Watch the four launch indicators turn green, then watch altitude rise.',
+      'Hold W for the left wing and O for the right. Hold both to launch.',
+    why: 'Each wingbeat key stimulates the power and recovery pathways together. Flight still comes from motor activity, not direct position controls.',
+    cue: 'Wait for both wing indicators, then hold W + O to build lift.',
   },
   {
-    title: 'Find your altitude rhythm',
-    keys: ['Q', 'W', 'A', 'S'],
+    title: 'Find a comfortable altitude',
+    keys: ['W', 'O'],
     action:
-      'Hold both power pairs to climb. Release both pairs briefly to descend, then hold again before you drop below the next gate.',
-    why: 'Start with holds of roughly one second and make small adjustments. Lift takes a moment to build and fade. Holding forever climbs too high; long releases lose altitude.',
-    cue: 'Keep altitude near the next gate, usually 5–7 m. Aim for small rises and falls.',
+      'Hold both wings to climb gently. Release both briefly to descend toward food.',
+    why: 'Vertical drag and gentle high-altitude lift reduction make corrections forgiving. There is no automatic route following.',
+    cue: 'Try short releases and stay around 3–7 m for the food trail.',
   },
   {
-    title: 'Bank with wing extent',
-    keys: ['T', 'G'],
-    action:
-      'While powering both wings, add T to bank toward screen-left or G toward screen-right. They extend opposite wings. Release early and watch your drift.',
-    why: 'Use the opposite extent muscle to counter a bank. Holding both increases both wings’ lift. These directions refer to the chase-camera view; the controls act through wing forces, so balance still matters.',
-    cue: 'Line up with the gate before reaching it. Return toward level as you approach its center.',
+    title: 'Bank into the bend',
+    keys: ['Q', 'P'],
+    action: 'While holding W + O, add Q to bank left or P to bank right.',
+    why: 'Stroke extent changes the balance of wing forces. Release the bank key and the fly levels out; opposite input corrects drift.',
+    cue: 'Bank shifts you sideways. Small holds are enough.',
   },
   {
-    title: 'Add speed with wing pitch',
-    keys: ['E', 'D', 'R', 'F'],
+    title: 'Rotate your heading',
+    keys: ['E', 'I'],
     action:
-      'Add E + D together to tilt both wings for more forward thrust. Release them to ease off. Add R + F together to slow down for a tight gate.',
-    why: 'These are wing-pitch muscles, so keep managing Q/W/A/S for lift. Matching both sides avoids an unwanted turn. R/F reduce thrust; they do not stop the fly instantly.',
-    cue: 'Use the speed meter. Accelerate on a straight, then reduce thrust before you need a correction.',
+      'Add E to yaw left or I to yaw right. Use the opposite key to straighten your heading.',
+    why: 'Unequal wing pitch rotates the body without requiring a large bank. Releasing the key stops the rotation, but preserves the heading you chose.',
+    cue: 'Yaw aims the nose into a bend; banking adjusts your position within it.',
   },
   {
-    title: 'Put it together',
-    keys: ['Q', 'W', 'A', 'S', 'T', 'G'],
+    title: 'Snack and sprint',
+    keys: ['Q', 'W', 'E', 'I', 'O', 'P'],
     action:
-      'Launch, settle near 5 m, and clear the first two centered gates. Then add one extent muscle at a time to align with the offset gates.',
-    why: 'Get altitude right first, line up next, then add speed if you have room. Space pauses immediately. Training pace is optional if you want more time to practice.',
-    cue: 'Clear all eight gates in order. After a miss, replay your flight to see the muscle activity that caused it.',
+      'Follow the winding mint lane, collect floating fruit and cross the checkered finish.',
+    why: 'Fruit disappears when eaten and gives a short boost. Hits knock you down briefly; recovery protection lets you get moving again.',
+    cue: 'Choose an inside or outside line. Space pauses; Training pace slows the flight.',
   },
 ];
 
@@ -65,14 +65,14 @@ export default function FlightTutorial({
     (step === 0
       ? flight.launched
         ? 'Airborne — keep both wings working'
-        : 'Waiting safely for the four lift channels'
+        : 'Waiting for both wingbeat keys'
       : step === 1
         ? `Altitude ${flight.position.y.toFixed(1)} m · ${flight.velocity.y > 0.1 ? 'rising' : flight.velocity.y < -0.1 ? 'descending' : 'level'}`
         : step === 2
           ? `Bank ${((Math.abs(flight.roll) * 180) / Math.PI).toFixed(0)}° · release early to limit drift`
           : step === 3
-            ? `Forward speed ${Math.max(0, flight.velocity.z).toFixed(1)} m/s`
-            : `${flight.checkpoint} of 8 gates cleared`);
+            ? `Heading ${((flight.yaw * 180) / Math.PI).toFixed(0)}° · opposite yaw corrects it`
+            : `${Math.min(100, Math.floor((flight.distance / FINISH_Z) * 100))}% to the kitchen finish`);
 
   return (
     <section

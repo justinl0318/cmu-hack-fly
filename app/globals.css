@@ -290,7 +290,7 @@ h1 span {
 }
 .key-grid {
   display: grid;
-  grid-template-columns: repeat(10, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
 }
 .muscle-key {
@@ -307,7 +307,7 @@ h1 span {
   position: relative;
   overflow: hidden;
 }
-.muscle-key:nth-child(n + 6) {
+.muscle-key:nth-child(n + 4) {
   background: #141f22;
 }
 .key-top {
@@ -401,7 +401,7 @@ h1 span {
   position: relative;
   height: 390px;
 }
-.scene-container > div {
+.scene-container > div:first-child {
   width: 100%;
   height: 100%;
 }
@@ -483,7 +483,8 @@ h1 span {
 .hud-note {
   position: absolute;
   left: 16px;
-  bottom: 14px;
+  top: 12px;
+  bottom: auto;
   z-index: 2;
   font: 10px monospace;
   color: #a3b4b5;
@@ -565,7 +566,7 @@ h1 span {
     font-size: 9px;
   }
   .key-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .muscle-key strong {
     font-size: 12px;
@@ -824,4 +825,38 @@ h1 span {
     grid-column: 1/-1;
     margin-top: 8px;
   }
+}
+
+/* Keep the little fly and kitchen visible while preparing to launch. */
+.race-overlay.takeoff-guide {
+  inset: auto 12px 12px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: #183f3ce8;
+  gap: 4px;
+}
+.takeoff-guide h2 {
+  font-size: 18px;
+  margin: 0;
+  letter-spacing: -0.4px;
+}
+.takeoff-guide p {
+  margin: 0;
+  max-width: 540px;
+  font-size: 11px;
+}
+.takeoff-guide .eyebrow {
+  font-size: 8px;
+}
+.takeoff-guide .launch-keys {
+  margin-top: 2px;
+}
+.takeoff-guide .launch-keys span {
+  width: 26px;
+  height: 26px;
+  font-size: 14px;
+}
+
+.key-grid .muscle-key:nth-child(4) {
+  border-left: 3px solid #a99bff;
 }

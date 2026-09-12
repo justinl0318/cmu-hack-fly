@@ -1,11 +1,23 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { RINGS, type FlightState } from '@/lib/simulation';
+import { type FlightState } from '@/lib/simulation';
 
-export default function RaceView({ state }: { state: FlightState }) {
+import { buildKitchen } from '@/lib/kitchen-scene';
+
+export default function RaceView({
+  state,
+  replay = false,
+}: {
+  state: FlightState;
+  replay?: boolean;
+}) {
   const host = useRef<HTMLDivElement>(null);
   const latest = useRef(state);
+  const snapCamera = useRef(true);
+  useEffect(() => {
+    snapCamera.current = true;
+  }, [replay]);
   useEffect(() => {
     latest.current = state;
   }, [state]);
@@ -21,74 +33,30 @@ export default function RaceView({ state }: { state: FlightState }) {
       return;
     }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor('#0b1517');
+    renderer.setClearColor('#f6e6bd');
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     element.appendChild(renderer.domElement);
     renderer.domElement.style.cssText = 'width:100%;height:100%;display:block';
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2('#0b1517', 0.022);
-    const camera = new THREE.PerspectiveCamera(58, 1, 0.1, 250);
-    scene.add(new THREE.HemisphereLight('#d6f3ed', '#25302b', 2.5));
-    const light = new THREE.DirectionalLight('#d6ff6b', 3);
-    light.position.set(-8, 15, -5);
+    scene.fog = new THREE.Fog('#f6e6bd', 65, 190);
+    const camera = new THREE.PerspectiveCamera(64, 1, 0.1, 300);
+    scene.add(new THREE.HemisphereLight('#fff8e5', '#ad8864', 2.7));
+    const light = new THREE.DirectionalLight('#fff0c5', 3);
+    light.position.set(-25, 45, -15);
     scene.add(light);
-    const grid = new THREE.GridHelper(360, 120, '#3a5550', '#203432');
-    grid.position.z = 110;
-    scene.add(grid);
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(360, 360),
-      new THREE.MeshStandardMaterial({ color: '#0b1718', roughness: 1 }),
-    );
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.set(0, -0.03, 110);
-    scene.add(ground);
-    const ringMeshes: THREE.Mesh[] = [];
-    for (let i = 0; i < RINGS.length; i++) {
-      const r = RINGS[i];
-      const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(r.radius, 0.065, 10, 96),
-        new THREE.MeshBasicMaterial({ color: '#d6ff6b' }),
-      );
-      ring.position.set(r.x, r.y, r.z);
-      scene.add(ring);
-      ringMeshes.push(ring);
-      const outer = new THREE.Mesh(
-        new THREE.TorusGeometry(r.radius + 0.2, 0.016, 6, 96),
-        new THREE.MeshBasicMaterial({
-          color: '#718962',
-          transparent: true,
-          opacity: 0.45,
-        }),
-      );
-      outer.position.copy(ring.position);
-      scene.add(outer);
-      const plinth = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.1, 0.1, r.y - r.radius, 8),
-        new THREE.MeshBasicMaterial({ color: '#617b63' }),
-      );
-      plinth.position.set(r.x, (r.y - r.radius) / 2, r.z);
-      scene.add(plinth);
-    }
-    // Course markers and blocks provide depth and speed cues without obscuring flight.
-    const markerGeo = new THREE.BoxGeometry(0.08, 0.06, 1.4),
-      markerMat = new THREE.MeshBasicMaterial({ color: '#547471' });
-    for (let z = -10; z < 220; z += 4) {
-      for (const x of [-7, 7]) {
-        const marker = new THREE.Mesh(markerGeo, markerMat);
-        marker.position.set(x, 0.03, z);
-        scene.add(marker);
-      }
-    }
+    const kitchen = buildKitchen(scene);
     const fly = new THREE.Group();
     scene.add(fly);
+    fly.scale.setScalar(1.35);
     const bodyMat = new THREE.MeshStandardMaterial({
-      color: '#798e85',
+      color: '#97745d',
       roughness: 0.45,
-      metalness: 0.35,
+      metalness: 0.05,
     });
     const darkMat = new THREE.MeshStandardMaterial({
-      color: '#293b38',
+      color: '#60483e',
       roughness: 0.45,
-      metalness: 0.25,
+      metalness: 0.05,
     });
     const ellipsoid = (
       scale: [number, number, number],
@@ -106,16 +74,28 @@ export default function RaceView({ state }: { state: FlightState }) {
     };
     ellipsoid([0.24, 0.23, 0.34], [0, 0, 0], bodyMat);
     ellipsoid([0.19, 0.18, 0.38], [0, -0.04, -0.46], darkMat);
-    ellipsoid([0.23, 0.2, 0.2], [0, 0.04, 0.35], darkMat);
+    ellipsoid([0.29, 0.25, 0.24], [0, 0.06, 0.35], bodyMat);
     const eyeMat = new THREE.MeshStandardMaterial({
-      color: '#c49d68',
-      metalness: 0.35,
+      color: '#ee493f',
+      metalness: 0.05,
       roughness: 0.25,
     });
-    ellipsoid([0.09, 0.13, 0.12], [-0.18, 0.09, 0.39], eyeMat);
-    ellipsoid([0.09, 0.13, 0.12], [0.18, 0.09, 0.39], eyeMat);
+    ellipsoid([0.17, 0.21, 0.17], [-0.21, 0.12, 0.46], eyeMat);
+    ellipsoid([0.17, 0.21, 0.17], [0.21, 0.12, 0.46], eyeMat);
+    const glintMat = new THREE.MeshBasicMaterial({ color: '#fff9eb' });
+    for (const sign of [-1, 1]) {
+      ellipsoid([0.05, 0.065, 0.025], [sign * 0.25, 0.21, 0.6], glintMat);
+      const antenna = new THREE.Mesh(
+        new THREE.CapsuleGeometry(0.018, 0.17, 4, 8),
+        darkMat,
+      );
+      antenna.position.set(sign * 0.13, 0.32, 0.4);
+      antenna.rotation.z = -sign * 0.35;
+      fly.add(antenna);
+      ellipsoid([0.035, 0.035, 0.035], [sign * 0.16, 0.42, 0.4], bodyMat);
+    }
     const wingMat = new THREE.MeshPhysicalMaterial({
-      color: '#c7e6dc',
+      color: '#fff1d9',
       transparent: true,
       opacity: 0.48,
       side: THREE.DoubleSide,
@@ -139,9 +119,15 @@ export default function RaceView({ state }: { state: FlightState }) {
           new THREE.Vector3(sign * 0.36, -0.35, 0.15 - j * 0.28),
           new THREE.Vector3(sign * 0.5, -0.43, 0.28 - j * 0.35),
         ];
-        const leg = new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints(path),
-          new THREE.LineBasicMaterial({ color: '#92a79e' }),
+        const leg = new THREE.Mesh(
+          new THREE.TubeGeometry(
+            new THREE.CatmullRomCurve3(path),
+            8,
+            0.025,
+            6,
+            false,
+          ),
+          darkMat,
         );
         fly.add(leg);
       }
@@ -158,48 +144,66 @@ export default function RaceView({ state }: { state: FlightState }) {
     shadow.rotation.x = -Math.PI / 2;
     shadow.position.y = 0.015;
     scene.add(shadow);
+    const dizzy = new THREE.Group();
+    scene.add(dizzy);
+    for (let i = 0; i < 5; i++) {
+      const star = new THREE.Mesh(
+        new THREE.OctahedronGeometry(0.12),
+        new THREE.MeshBasicMaterial({ color: '#ffcf45' }),
+      );
+      star.position.set(
+        Math.cos((i * Math.PI * 2) / 5) * 0.65,
+        0,
+        Math.sin((i * Math.PI * 2) / 5) * 0.65,
+      );
+      dizzy.add(star);
+    }
     const target = new THREE.Vector3(),
       cameraTarget = new THREE.Vector3();
     let frame = 0;
     let previousTime = 0;
+    let previousElapsed = 0;
     const draw = (time: number) => {
       frame = requestAnimationFrame(draw);
       const s = latest.current;
       const dt = Math.min((time - previousTime) / 1000, 0.05);
       previousTime = time;
       fly.position.set(s.position.x, s.position.y, s.position.z);
-      fly.rotation.set(s.pitch, s.yaw, -s.roll, 'YXZ');
+      fly.rotation.set(
+        s.pitch,
+        s.launched ? s.yaw : Math.PI + 0.3,
+        s.stunRemaining > 0 ? Math.PI / 2 : -s.roll,
+        'YXZ',
+      );
+      dizzy.visible = s.stunRemaining > 0;
+      dizzy.position.set(s.position.x, s.position.y + 1, s.position.z);
+      dizzy.rotation.y = s.elapsed * 5;
       for (let i = 0; i < 2; i++) {
         const offset = i * 5;
         const m = s.muscle;
         const power = (m[offset] ?? 0) + (m[offset + 1] ?? 0);
         wings[i].rotation.z =
           (i === 0 ? 1 : -1) *
-          Math.sin(s.elapsed * 80) *
+          (s.stunRemaining > 0 ? 0 : Math.sin(s.elapsed * 80)) *
           (0.12 + power * 0.3 + (m[offset + 4] ?? 0) * 0.3);
         wings[i].rotation.x =
           ((m[offset + 2] ?? 0) - (m[offset + 3] ?? 0)) * 0.5;
       }
       shadow.position.set(s.position.x, 0.015, s.position.z);
       shadow.scale.setScalar(1 + s.position.y * 0.08);
-      cameraTarget.set(
-        s.position.x * 0.7,
-        s.position.y + 3.1,
-        s.position.z - 10.5,
+      cameraTarget.set(s.position.x, s.position.y + 3.1, s.position.z - 10.5);
+      if (snapCamera.current || Math.abs(s.elapsed - previousElapsed) > 1) {
+        camera.position.copy(cameraTarget);
+        snapCamera.current = false;
+      } else camera.position.lerp(cameraTarget, 1 - Math.exp(-dt * 4));
+      previousElapsed = s.elapsed;
+      target.set(
+        s.position.x + Math.sin(s.yaw) * 5,
+        s.position.y + 0.1,
+        s.position.z + 8,
       );
-      if (time < 100) camera.position.copy(cameraTarget);
-      else camera.position.lerp(cameraTarget, 1 - Math.exp(-dt * 4));
-      target.set(s.position.x * 0.8, s.position.y + 0.1, s.position.z + 8);
       camera.lookAt(target);
-      for (let i = 0; i < ringMeshes.length; i++) {
-        (ringMeshes[i].material as THREE.MeshBasicMaterial).color.set(
-          i < s.checkpoint
-            ? '#365854'
-            : i === s.checkpoint
-              ? '#d6ff6b'
-              : '#6c9690',
-        );
-      }
+      kitchen.update(s.elapsed, s.collectedFood);
       renderer.render(scene, camera);
     };
     camera.position.set(0, 8, -10.5);
@@ -223,6 +227,7 @@ export default function RaceView({ state }: { state: FlightState }) {
           );
         }
       });
+      kitchen.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     };

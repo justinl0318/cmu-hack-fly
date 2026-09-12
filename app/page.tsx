@@ -14,12 +14,10 @@ import BrainView, { type Circuit } from '@/components/BrainView';
 import Link from 'next/link';
 import RaceView from '@/components/RaceView';
 import FlightTutorial, { LESSONS } from '@/components/FlightTutorial';
-import {
-  CHANNELS,
-  createFlightState,
-  stepFlight,
-  type FlightState,
-} from '@/lib/simulation';
+import { createFlightState, stepFlight } from '@/lib/simulation';
+import { interpolateReplay, type ReplayFrame } from '@/lib/replay';
+import { FINISH_Z } from '@/lib/kitchen';
+import { CONTROLS, muscleInputs } from '@/lib/controls';
 import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
@@ -28,14 +26,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 
-const keys = ['Q', 'W', 'E', 'R', 'T', 'A', 'S', 'D', 'F', 'G'];
-const labels = [
-  'Downstroke',
-  'Upstroke',
-  'Pronation',
-  'Supination',
-  'Stroke extent',
-];
+const keys = CONTROLS.map((c) => c.key.toUpperCase());
 export default function Home() {
   const [help, setHelp] = useState(false);
   const [lesson, setLesson] = useState(0);
@@ -59,9 +50,9 @@ export default function Home() {
   const slowRef = useRef(false);
   const activationRef = useRef<number[]>(Array(10).fill(0));
   const held = useRef(new Set<string>());
-  const history = useRef<
-    { flight: FlightState; activations: number[]; spikes: string[] }[]
-  >([]);
+  const history = useRef<ReplayFrame[]>([]);
+  const recordingClock = useRef(0);
+  const replayClock = useRef(0);
   const replayIndex = useRef(0);
   const lastSpikes = useRef<string[]>([]);
   const clearKeys = useCallback(() => {
@@ -74,7 +65,10 @@ export default function Home() {
     if (down) held.current.add(key);
     else held.current.delete(key);
     setPressed([...held.current]);
-    worker.current?.postMessage({ type: 'input', pressed: [...held.current] });
+    worker.current?.postMessage({
+      type: 'input',
+      pressed: muscleInputs([...held.current]),
+    });
   }, []);
   const pause = useCallback(() => {
     runRef.current = false;
@@ -99,6 +93,8 @@ export default function Home() {
     flightRef.current = createFlightState();
     setFlight({ ...flightRef.current });
     history.current = [];
+    recordingClock.current = 0;
+    replayClock.current = 0;
     activationRef.current = Array(10).fill(0);
     setActivations([...activationRef.current]);
     setSpikes([]);
@@ -108,6 +104,7 @@ export default function Home() {
     pause();
     if (!history.current.length) return;
     replayIndex.current = 0;
+    replayClock.current = history.current[0].at;
     replayRef.current = true;
     setReplay(true);
   };
@@ -158,25 +155,31 @@ export default function Home() {
   useEffect(() => {
     let raf = 0,
       last = 0,
-      accumulator = 0,
-      replayClock = 0;
+      accumulator = 0;
     const loop = (now: number) => {
       const dt = Math.min((now - last) / 1000, 0.05);
       last = now;
       if (replayRef.current) {
-        replayClock += dt;
-        if (replayClock >= 0.12) {
-          replayClock = 0;
-          const frame = history.current[replayIndex.current++];
-          if (frame) {
-            setFlight(frame.flight);
-            setActivations(frame.activations);
-            setSpikes(frame.spikes);
-          } else {
-            replayRef.current = false;
-            setReplay(false);
-            setFlight(structuredClone(flightRef.current));
-          }
+        const frames = history.current;
+        replayClock.current += dt / 3;
+        while (
+          replayIndex.current + 1 < frames.length &&
+          frames[replayIndex.current + 1].at <= replayClock.current
+        )
+          replayIndex.current++;
+        const a = frames[replayIndex.current],
+          b = frames[replayIndex.current + 1];
+        if (a && b) {
+          const frame = interpolateReplay(a, b, replayClock.current);
+          setFlight(frame.flight);
+          setActivations(frame.activations);
+          setSpikes(frame.spikes);
+        } else {
+          replayRef.current = false;
+          setReplay(false);
+          setFlight(structuredClone(flightRef.current));
+          setActivations([...activationRef.current]);
+          setSpikes([...lastSpikes.current]);
         }
       } else if (runRef.current) {
         stepFlight(
@@ -184,17 +187,23 @@ export default function Home() {
           activationRef.current,
           dt * (slowRef.current ? 0.5 : 1),
         );
+        recordingClock.current += dt;
         accumulator += dt;
         if (accumulator >= 0.04) {
-          accumulator = 0;
+          accumulator %= 0.04;
           const snapshot = structuredClone(flightRef.current);
           setFlight(snapshot);
           history.current.push({
+            at: recordingClock.current,
             flight: snapshot,
             activations: [...activationRef.current],
             spikes: [...lastSpikes.current],
           });
-          if (history.current.length > 300) history.current.shift();
+          while (
+            history.current.length > 1 &&
+            history.current[0].at < recordingClock.current - 12
+          )
+            history.current.shift();
         }
         if (flightRef.current.crashed || flightRef.current.finished) {
           setFlight(structuredClone(flightRef.current));
@@ -216,7 +225,7 @@ export default function Home() {
       if ((e.target as HTMLElement).closest('input,textarea,[role="dialog"]'))
         return;
       const key = e.key.toLowerCase();
-      if (CHANNELS.some((c) => c.key === key)) {
+      if (CONTROLS.some((c) => c.key === key)) {
         e.preventDefault();
         if (!held.current.has(key)) setKey(key, true);
       }
@@ -369,10 +378,10 @@ export default function Home() {
         <div className="race-panel">
           <div className="panel-top">
             <span>
-              <span className="live-dot" /> FLIGHT CHAMBER
+              <span className="live-dot" /> KITCHEN COUNTER CHAOS
             </span>
             <div className="race-actions">
-              <span>COURSE 01</span>
+              <span>REACH THE FINISH</span>
               <button
                 aria-label={running ? 'Pause flight' : 'Resume flight'}
                 title="Pause / resume · Space"
@@ -393,35 +402,35 @@ export default function Home() {
             </div>
           </div>
           <div className="scene-container">
-            <RaceView state={flight} />
+            <RaceView state={flight} replay={replay} />
             {!running && !replay && (
               <div className="race-overlay">
                 <span className="eyebrow">
                   {flight.finished
-                    ? 'ALL GATES CLEARED'
+                    ? 'FINISH LINE REACHED'
                     : flight.crashed
                       ? 'EVERY FLIGHT IS AN EXPERIMENT'
                       : started
                         ? 'TAKE A BREATH'
-                        : 'EXPERIMENT 01 / MOTOR COORDINATION'}
+                        : 'KITCHEN COUNTER CHAOS / FINISH RUN'}
                 </span>
                 <h2>
                   {flight.finished
-                    ? 'Flight, mastered.'
+                    ? 'Kitchen conquered!'
                     : flight.crashed
                       ? 'Back to the drawing board.'
                       : started
                         ? 'Flight paused.'
-                        : 'You are the nervous system.'}
+                        : 'Tiny fly. Big kitchen.'}
                 </h2>
                 <p>
                   {flight.finished
-                    ? `Eight gates. ${clock}. Your wings found their rhythm.`
+                    ? `Finish reached in ${clock}. A delicious little victory.`
                     : flight.crashed
                       ? 'A missed gate or a hard landing. Try steady holds and balance both wings.'
                       : started
                         ? 'Your fly is waiting. Pick up where you left off.'
-                        : 'Take your time preparing both wings. Hold Q + W + A + S to lift off when you’re ready.'}
+                        : 'Hold W + O to launch. Reach the checkered finish at the far end of the kitchen. Hits briefly stun you on the counter. Recover and keep flying.'}
                 </p>
                 <button
                   className="primary-button"
@@ -455,17 +464,21 @@ export default function Home() {
                 <span className="eyebrow">SAFE LAUNCH · NO TIME LIMIT</span>
                 <h2>Bring both wings online.</h2>
                 <p>
-                  Hold Q + W and A + S. Keep holding to build power; takeoff
-                  begins when all four muscles respond.
+                  Hold W and O. Keep holding to build power; takeoff begins when
+                  both wing pairs respond.
                 </p>
                 <div
                   className="launch-keys"
                   aria-label="Takeoff muscle readiness"
                 >
-                  {[0, 1, 5, 6].map((i) => (
+                  {[1, 4].map((i) => (
                     <span
                       key={i}
-                      className={activations[i] >= 0.5 ? 'ready' : ''}
+                      className={
+                        CONTROLS[i].channels.every((c) => activations[c] >= 0.5)
+                          ? 'ready'
+                          : ''
+                      }
                     >
                       {keys[i]}
                     </span>
@@ -476,13 +489,17 @@ export default function Home() {
             <div className="hud-note">
               {replay
                 ? 'REPLAY · ⅓ SPEED'
-                : running
-                  ? !flight.launched
-                    ? 'HOLD Q + W + A + S · NO RAPID TAPPING NEEDED'
-                    : slow
-                      ? 'TRAINING PACE · ½ SPEED · SPACE TO PAUSE'
-                      : 'FULL SPEED · SPACE TO PAUSE'
-                  : 'MATCH BOTH WINGS. THEN EXPERIMENT.'}
+                : flight.stunRemaining > 0
+                  ? 'STUNNED · RECOVERING…'
+                  : flight.boostRemaining > 0
+                    ? 'FOOD BOOST · GO!'
+                    : running
+                      ? !flight.launched
+                        ? 'HOLD W + O · NO RAPID TAPPING NEEDED'
+                        : slow
+                          ? 'TRAINING PACE · ½ SPEED · SPACE TO PAUSE'
+                          : 'FULL SPEED · SPACE TO PAUSE'
+                      : 'MATCH BOTH WINGS. THEN EXPERIMENT.'}
             </div>
           </div>
           <div className="race-status">
@@ -499,9 +516,10 @@ export default function Home() {
               </b>
             </span>
             <span>
-              GATES{' '}
+              COURSE{' '}
               <b>
-                {String(flight.checkpoint).padStart(2, '0')} <small>/ 08</small>
+                {Math.min(100, Math.floor((flight.distance / FINISH_Z) * 100))}{' '}
+                <small>%</small>
               </b>
             </span>
             <span>
@@ -545,7 +563,7 @@ export default function Home() {
                   key={i}
                   style={{
                     height: 2 + a * 20,
-                    background: i < 5 ? '#d2f970' : '#a99bff',
+                    background: i < 3 ? '#d2f970' : '#a99bff',
                   }}
                 />
               ))}
@@ -586,7 +604,7 @@ export default function Home() {
           <p>
             Steady holds build power. Release to ease off.
             <br />
-            Wing-pitch commands compete; sustained effort fatigues.
+            W + O fly · Q / P bank · E / I yaw · release to stabilize.
           </p>
         </div>
         <div className="key-grid">
@@ -600,9 +618,9 @@ export default function Home() {
                   : '')
               }
               key={key}
-              aria-label={`${i < 5 ? 'Left' : 'Right'} ${labels[i % 5]} · ${key}`}
+              aria-label={`${CONTROLS[i].side} ${CONTROLS[i].label} · ${key}`}
               aria-pressed={pressed.includes(key.toLowerCase())}
-              title={CHANNELS[i].description}
+              title={CONTROLS[i].description}
               onPointerDown={(e) => {
                 e.currentTarget.setPointerCapture(e.pointerId);
                 setKey(key.toLowerCase(), true);
@@ -622,29 +640,31 @@ export default function Home() {
               <span className="key-top">
                 <kbd>{key}</kbd>
                 <span>
-                  {i < 5 ? 'L' : 'R'} / 0{(i % 5) + 1}
+                  {CONTROLS[i].side === 'Left' ? 'L' : 'R'} / 0{(i % 3) + 1}
                 </span>
               </span>
-              <strong>{labels[i % 5]}</strong>
+              <strong>{CONTROLS[i].label}</strong>
               <div className="activation-track">
                 <i
                   style={{
-                    width: `${activations[i] * 100}%`,
-                    background: i < 5 ? '#d2f970' : '#a99bff',
+                    width: `${Math.max(...CONTROLS[i].channels.map((c) => activations[c])) * 100}%`,
+                    background: i < 3 ? '#d2f970' : '#a99bff',
                   }}
                 />
               </div>
               <span
                 className="fatigue"
-                style={{ width: `${flight.fatigue[i] * 100}%` }}
+                style={{
+                  width: `${Math.max(...CONTROLS[i].channels.map((c) => flight.fatigue[c])) * 100}%`,
+                }}
               />
             </button>
           ))}
         </div>
         <div className="deck-footer">
           <span>
-            Q W E R T <b>LEFT WING</b>
-            <span className="divider" /> A S D F G <b>RIGHT WING</b>
+            Q W E <b>LEFT WING</b>
+            <span className="divider" /> I O P <b>RIGHT WING</b>
           </span>
           <span>COORDINATION OVER SPEED</span>
         </div>

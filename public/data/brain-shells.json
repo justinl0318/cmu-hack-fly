@@ -1,0 +1,74 @@
+{
+  "license": "CC-BY-4.0",
+  "units": "circuit-normalized",
+  "shells": [
+    {
+      "file": "fullbrain-major-shells-1.bin",
+      "source": "https://storage.googleapis.com/flyem-male-cns/rois/fullbrain-major-shells/mesh/CB.ngmesh",
+      "vertices": 18278,
+      "triangles": 39288,
+      "sha256": "65cb8de1176b699d292dd60628bee2fe4365af9640e0876dca3d172134ceb5f4",
+      "min": [
+        -0.44696369767189026,
+        -0.5508954524993896,
+        -1.0456697940826416
+      ],
+      "max": [
+        0.4341363310813904,
+        0.18747666478157043,
+        -0.49817556142807007
+      ]
+    },
+    {
+      "file": "fullbrain-major-shells-2.bin",
+      "source": "https://storage.googleapis.com/flyem-male-cns/rois/fullbrain-major-shells/mesh/OL(L).ngmesh",
+      "vertices": 7075,
+      "triangles": 15386,
+      "sha256": "32734b5d6c7f86eeef1c1d13bbc454b28ad8c827af94fd50421aca631789b58e",
+      "min": [
+        0.25300028920173645,
+        -0.4097258150577545,
+        -0.8402578830718994
+      ],
+      "max": [
+        0.7333273887634277,
+        0.23172958195209503,
+        -0.5005764961242676
+      ]
+    },
+    {
+      "file": "fullbrain-major-shells-3.bin",
+      "source": "https://storage.googleapis.com/flyem-male-cns/rois/fullbrain-major-shells/mesh/OL(R).ngmesh",
+      "vertices": 7206,
+      "triangles": 15750,
+      "sha256": "9732a316bbdb528d23be0db8afd677d7b8c80e3a1bc700c41325896646c80390",
+      "min": [
+        -0.7609226107597351,
+        -0.3862987160682678,
+        -0.817945659160614
+      ],
+      "max": [
+        -0.25158870220184326,
+        0.27610790729522705,
+        -0.47857505083084106
+      ]
+    },
+    {
+      "file": "vnc-neuropil-shell-v2-1.bin",
+      "source": "https://storage.googleapis.com/flyem-male-cns/rois/vnc-neuropil-shell-v2/mesh/vnc-neuropil-shell.ngmesh",
+      "vertices": 19290,
+      "triangles": 43148,
+      "sha256": "bed9861f456bf747ef7e93c38c756ac42c9c11f0a10b30b646d78512edb5e56e",
+      "min": [
+        -0.2683127522468567,
+        0.07341169565916061,
+        -0.06674232333898544
+      ],
+      "max": [
+        0.3054942488670349,
+        0.5723724961280823,
+        1.1307765245437622
+      ]
+    }
+  ]
+}
