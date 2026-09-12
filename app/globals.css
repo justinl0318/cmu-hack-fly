@@ -964,6 +964,26 @@ h1 span {
   line-height: 1.15;
   text-align: right;
 }
+.room-speed {
+  flex: 1 0 100%;
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+  padding: 16px 0;
+}
+.room-speed-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.room-speed output {
+  color: #ffd43b;
+  font-weight: 700;
+}
+.room-speed p {
+  margin: 0;
+  font-size: 14px;
+}
 .resume-field {
   display: grid;
   gap: 8px;

@@ -35,6 +35,7 @@ export interface NeuralFrame {
   spikes: string[];
 }
 export interface RaceSnapshot {
+  speedMultiplier?: number;
   results?: Racer[];
   phase: 'lobby' | 'countdown' | 'racing' | 'results';
   clock: number;
@@ -122,7 +123,7 @@ export function advanceRace(race: RaceSnapshot, dt: number) {
   for (const p of race.players) {
     p.cooldown = Math.max(0, p.cooldown - dt);
     p.attackFlash = Math.max(0, p.attackFlash - dt);
-    stepFlight(p.state, p.activations, dt);
+    stepFlight(p.state, p.activations, dt, race.speedMultiplier ?? 1);
     if (p.state.launched && p.state.stunRemaining === 0) {
       p.topSpeed = Math.max(
         p.topSpeed,

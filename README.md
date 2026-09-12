@@ -101,6 +101,8 @@ No SSH is necessary. The Same website mode already uses the reachable website co
 
 ### Combat and race rules
 
+- Before creating a room, use **Flight speed** to choose **1×–5×** in 0.25× steps (default 1×). The host's setting applies to every player and is shown in the room; guests joining use the room setting. Race again keeps the same speed. This scales horizontal flight thrust and cruising speed, not the race clock, attack cooldown, stun duration or neural-worker rate. Higher speeds use smaller collision substeps. Single player also has a 1×–5× slider above the flight view, adjustable before takeoff or while paused; reset preserves it. Training pace remains a separate half-time option.
+
 - Six movement keys stay **Q W E / I O P**. **F** is a permanently available forward buzz attack, including an on-screen button. Hold to repeat every 1.5 seconds; no inventory or attack pickups.
 - Hits reach up to 8 world units inside a forward cone (roughly ±49°), within 3 vertical units. They cannot hit behind you, during countdown, while stunned, or after finishing. The expanding golden wave indicates an attack; HITS increments on a successful hit.
 - A hit drops the victim to the counter, then rests for 1.2 seconds. Recovery grants 2 seconds of immunity. Progress survives a hit. Food remains a speed boost, independent of combat.

@@ -2,6 +2,7 @@ import { normalizeProfile, type PlayerProfile } from './profile';
 import Peer from 'peerjs';
 import { LanPeer } from './lan-peer';
 import type { RoomConnection, RoomTransport } from './room-transport';
+import { normalizeFlightSpeed } from './simulation';
 import {
   advanceRace,
   attack,
@@ -51,8 +52,10 @@ export class PeerRoom {
     private snapshot: (s: RaceSnapshot) => void,
     private status: (message: string, connected?: boolean) => void,
     private transport: 'lan' | 'webrtc' = 'webrtc',
+    speedMultiplier = 1,
   ) {
     this.host = host;
+    this.race.speedMultiplier = normalizeFlightSpeed(speedMultiplier);
     this.code = host ? roomCode() : code.trim().toUpperCase();
     this.peer =
       transport === 'lan'

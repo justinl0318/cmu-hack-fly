@@ -19,6 +19,27 @@ const setup = (): RaceSnapshot => {
   players[1].state.position.z = 5;
   return { phase: 'racing', clock: 0, countdown: 0, players };
 };
+void test('room speed applies to all racers while race clock and attack cooldown stay real-time', () => {
+  const normal = setup(),
+    fast = setup();
+  fast.speedMultiplier = 5;
+  for (const race of [normal, fast])
+    for (const p of race.players) {
+      p.activations = [1, 1, 0, 0, 0, 1, 1, 0, 0, 0];
+      p.state.muscle = [...p.activations];
+      p.cooldown = 1;
+    }
+  advanceRace(normal, 0.1);
+  advanceRace(fast, 0.1);
+  assert.equal(normal.clock, fast.clock);
+  for (let i = 0; i < fast.players.length; i++) {
+    assert.ok(
+      fast.players[i].state.velocity.z >
+        normal.players[i].state.velocity.z * 4.8,
+    );
+    assert.equal(fast.players[i].cooldown, normal.players[i].cooldown);
+  }
+});
 void test('innate forward attack hits without pickups, respects cooldown and immunity', () => {
   const race = setup();
   assert.equal(attack(race, 'host'), true);

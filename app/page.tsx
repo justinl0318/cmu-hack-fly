@@ -21,6 +21,7 @@ import { createFlightState, stepFlight } from '@/lib/simulation';
 import { interpolateReplay, type ReplayFrame } from '@/lib/replay';
 import { CONTROLS, muscleInputs } from '@/lib/controls';
 import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,8 @@ export function SoloGame({ profile }: { profile: PlayerProfile }) {
   const [running, setRunning] = useState(false);
   const [started, setStarted] = useState(false);
   const [slow, setSlow] = useState(false);
+  const [speedMultiplier, setSpeedMultiplier] = useState(1);
+  const speedRef = useRef(1);
   const [replay, setReplay] = useState(false);
   const [pressed, setPressed] = useState<string[]>([]);
   const [spikes, setSpikes] = useState<string[]>([]);
@@ -188,6 +191,7 @@ export function SoloGame({ profile }: { profile: PlayerProfile }) {
           flightRef.current,
           activationRef.current,
           dt * (slowRef.current ? 0.5 : 1),
+          speedRef.current,
         );
         recordingClock.current += dt;
         accumulator += dt;
@@ -369,6 +373,35 @@ export function SoloGame({ profile }: { profile: PlayerProfile }) {
           {error} <button onClick={() => location.reload()}>Retry</button>
         </div>
       )}
+      <section className="room-card" aria-label="Single-player flight settings">
+        <div className="room-speed">
+          <div className="room-speed-heading">
+            <span id="solo-flight-speed-label">Flight speed</span>
+            <output>{speedMultiplier}×</output>
+          </div>
+          <Slider
+            aria-labelledby="solo-flight-speed-label"
+            min={1}
+            max={5}
+            step={0.25}
+            value={[speedMultiplier]}
+            disabled={running || replay}
+            onValueChange={(value) => {
+              const speed = Array.isArray(value) ? value[0] : value;
+              speedRef.current = speed;
+              setSpeedMultiplier(speed);
+            }}
+          />
+          <div className="room-speed-heading">
+            <span>1×</span>
+            <span>5×</span>
+          </div>
+          <p>
+            Adjust before takeoff or while paused. Reset keeps your selected
+            speed.
+          </p>
+        </div>
+      </section>
       <section className="workspace">
         <div className="race-panel">
           <div className="panel-top">

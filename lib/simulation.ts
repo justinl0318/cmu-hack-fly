@@ -117,10 +117,14 @@ export function stun(s: FlightState) {
     }
   }
 }
+export function normalizeFlightSpeed(value: number) {
+  return Number.isFinite(value) ? clamp(value, 1, 5) : 1;
+}
 export function stepFlight(
   s: FlightState,
   activations: number[],
   delta: number,
+  speedMultiplier = 1,
 ): FlightState {
   if (s.finished || s.crashed || !Number.isFinite(delta) || delta <= 0)
     return s;
@@ -139,9 +143,10 @@ export function stepFlight(
     );
   }
   // Fixed maximum substeps keep collisions and integration stable after frame stalls.
+  const speed = normalizeFlightSpeed(speedMultiplier);
   let remaining = Math.min(delta, 0.25);
   while (remaining > 1e-8 && !s.crashed && !s.finished) {
-    const dt = Math.min(remaining, 1 / 120);
+    const dt = Math.min(remaining, 1 / (120 * (s.stunRemaining > 0 ? 1 : speed)));
     remaining -= dt;
 
     s.elapsed += dt;
@@ -192,8 +197,9 @@ export function stepFlight(
       Math.max(0, 1.75 + Math.max(-0.65, twist) * 3.5) *
       (s.boostRemaining > 0 ? 1.7 : 1);
     s.velocity.x +=
-      (Math.cos(s.yaw) * Math.sin(s.roll) * lift * 1.7 +
-        Math.sin(s.yaw) * thrust -
+      ((Math.cos(s.yaw) * Math.sin(s.roll) * lift * 1.7 +
+        Math.sin(s.yaw) * thrust) *
+        speed -
         s.velocity.x * 0.6) *
       dt;
     s.velocity.y +=
@@ -203,8 +209,9 @@ export function stepFlight(
         s.velocity.y * 3.8) *
       dt;
     s.velocity.z +=
-      (Math.cos(s.yaw) * thrust -
-        Math.sin(s.yaw) * Math.sin(s.roll) * lift * 1.7 -
+      ((Math.cos(s.yaw) * thrust -
+        Math.sin(s.yaw) * Math.sin(s.roll) * lift * 1.7) *
+        speed -
         s.velocity.z * 0.6) *
       dt;
     for (const k of ['x', 'y', 'z'] as const)

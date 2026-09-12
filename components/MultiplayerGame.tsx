@@ -8,6 +8,7 @@ import type { RaceSnapshot } from '@/lib/battle';
 import type { PlayerProfile } from '@/lib/profile';
 import SocialCards from './SocialCards';
 import Brand from './Brand';
+import { Slider } from './ui/slider';
 import type { PeerRoom } from '@/lib/peer-room';
 
 export default function MultiplayerGame({
@@ -18,6 +19,7 @@ export default function MultiplayerGame({
   profile: PlayerProfile;
 }) {
   const [code, setCode] = useState('');
+  const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [message, setMessage] = useState('Create a room or enter a room code.');
   const [connecting, setConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -139,6 +141,7 @@ export default function MultiplayerGame({
             });
         },
         transport,
+        speedMultiplier,
       );
     } catch {
       setConnecting(false);
@@ -202,6 +205,33 @@ export default function MultiplayerGame({
               <option value="webrtc">WebRTC · direct connection</option>
             </select>
           </label>
+          <div className="room-speed">
+            <div className="room-speed-heading">
+              <span id="flight-speed-label">Flight speed</span>
+              <output>
+                {speedMultiplier.toFixed(2).replace(/\.?0+$/, '')}×
+              </output>
+            </div>
+            <Slider
+              aria-labelledby="flight-speed-label"
+              min={1}
+              max={5}
+              step={0.25}
+              value={[speedMultiplier]}
+              disabled={connecting}
+              onValueChange={(value) =>
+                setSpeedMultiplier(Array.isArray(value) ? value[0] : value)
+              }
+            />
+            <div className="room-speed-heading">
+              <span>1×</span>
+              <span>5×</span>
+            </div>
+            <p>
+              Used when you create a room. Joining a room uses the host’s speed
+              for everyone.
+            </p>
+          </div>
           <button
             className="primary-button"
             disabled={!circuit || connecting || !transportReady}
@@ -289,6 +319,7 @@ export default function MultiplayerGame({
               Copy code
             </button>
             <span>{race.players.length} / 8 flies</span>
+            <span>Flight speed · {race.speedMultiplier ?? 1}×</span>
             <span>
               {transport === 'lan' ? 'Same website · LAN demo' : 'WebRTC'}
             </span>

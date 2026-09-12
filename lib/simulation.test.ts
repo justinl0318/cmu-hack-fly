@@ -16,9 +16,32 @@ import {
   createFlightState,
   stepFlight,
   updateRaceProgress,
+  normalizeFlightSpeed,
   // @ts-expect-error Node's native TypeScript runner requires the explicit .ts extension.
 } from './simulation.ts';
 
+void test('room flight speed scales horizontal flight up to five without speeding up time or stun', () => {
+  const normal = createFlightState(),
+    fast = createFlightState();
+  const wings = [1, 1, 0, 0, 0, 1, 1, 0, 0, 0];
+  stepFlight(normal, wings, 0.2, 1);
+  stepFlight(fast, wings, 0.2, 5);
+  const ratio = fast.velocity.z / normal.velocity.z;
+  assert.ok(ratio > 4.9 && ratio < 5.1, `speed ratio ${ratio}`);
+  assert.ok(Math.abs(normal.elapsed - fast.elapsed) < 1e-6);
+  assert.ok(Math.abs(normal.position.y - fast.position.y) < 0.02);
+  for (const s of [normal, fast]) {
+    s.position.y = 0.45;
+    s.velocity.y = 0;
+    s.stunRemaining = 1;
+  }
+  stepFlight(normal, wings, 0.2, 1);
+  stepFlight(fast, wings, 0.2, 5);
+  assert.ok(Math.abs(normal.stunRemaining - fast.stunRemaining) < 1e-6);
+  assert.equal(normalizeFlightSpeed(99), 5);
+  assert.equal(normalizeFlightSpeed(-1), 1);
+  assert.equal(normalizeFlightSpeed(NaN), 1);
+});
 void test('launch perch is safe indefinitely without balanced wing output', () => {
   const s = createFlightState(),
     initial = createFlightState();
