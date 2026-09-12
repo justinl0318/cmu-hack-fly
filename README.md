@@ -20,7 +20,7 @@ Open Flight school for five lessons: takeoff, altitude, banking, wing pitch, and
 - Hold Q+W+A+S to launch and build lift; briefly release to descend.
 - While powering the wings, add T to bank toward screen-left or G toward screen-right in the chase view. Release early and counter with the other wing to limit drift.
 - Add E+D for more thrust, R+F for braking. Keep managing the four lift muscles. Braking reduces thrust without producing reverse thrust.
-- Start with the first two centered gates, then coordinate wing extent for the offset gates.
+- Stay over the OpenRacer asphalt through every bend. Invisible track edges bounce the fly back; a landing is recoverable, and the checkered line ends the lap.
 
 ## Data and model
 
@@ -37,9 +37,16 @@ Download raw annotations and weights as documented in the provenance file first.
 ## Architecture
 
 - `public/neural-worker.js`: LIF neuron simulation; keyboard inputs only stimulate input neurons. Only actual modeled output spikes generate muscle activation.
-- `lib/simulation.ts`: deterministic arcade biomechanics and gate collision detection.
+- `lib/simulation.ts`: deterministic arcade biomechanics, recoverable landings, and invisible OpenRacer track-wall collision.
 - `components/BrainView.tsx`: Three.js actual morphology, selection, orbit, and illustrative event pulses.
-- `components/RaceView.tsx`: Three.js course, fly, and chase camera.
+- `components/RaceView.tsx`: modern Three.js loader for the OpenRacer circuit, fly, finish line, and chase camera.
+- `lib/openRacerCourse.ts`: transforms the original road ribbons into shared render and physics course data.
+
+## License and OpenRacer source
+
+This project is GPLv3 because it includes the OpenRacer circuit mesh and textures.
+The original scene data is in `public/assets/openracer/`; attribution and adaptation
+notes are in `THIRD_PARTY_NOTICES.md`. See `LICENSE` for the full GPLv3 text.
 - `app/page.tsx`: controls, worker lifecycle, pause/reset, replay and display.
 
 ## Verification
@@ -50,6 +57,6 @@ npx tsc --noEmit
 npm run build
 ```
 
-Tests cover real pathway independence, connection ablation, safe launch, reset, fatigue, physics, ordered gates, and complete flights with key decisions only every 0.6, 0.8, or 1.0 seconds. A simultaneous all-key hold must fail. Browser rendering/interaction QA was not run because no browser was available in this session. Optional WebMCP read/reset tools are feature-detected; a supported WebMCP validation context was unavailable, so those tools are not verified.
+Tests cover real pathway independence, connection ablation, safe launch, reset, fatigue, OpenRacer wall reflection, ordered race sectors, and complete flights with key decisions only every 0.6, 0.8, or 1.0 seconds. Browser rendering/interaction QA was not run because no browser was available in this session. Optional WebMCP read/reset tools are feature-detected; a supported WebMCP validation context was unavailable, so those tools are not verified.
 
 Data: MaleCNS/FlyEM, HHMI Janelia Research Campus, Google Research and collaborators, CC-BY 4.0. Artificial muscle-action assignments and simulation constants are documented in-app.

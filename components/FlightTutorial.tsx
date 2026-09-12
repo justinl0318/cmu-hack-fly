@@ -1,7 +1,7 @@
 'use client';
 
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
-import type { FlightState } from '@/lib/simulation';
+import { RACE_SECTOR_COUNT, type FlightState } from '@/lib/simulation';
 
 export const LESSONS = [
   {
@@ -16,9 +16,9 @@ export const LESSONS = [
     title: 'Find your altitude rhythm',
     keys: ['Q', 'W', 'A', 'S'],
     action:
-      'Hold both power pairs to climb. Release both pairs briefly to descend, then hold again before you drop below the next gate.',
+      'Hold both power pairs to climb. Release both pairs briefly to descend, then hold again before you settle onto the circuit.',
     why: 'Start with holds of roughly one second and make small adjustments. Lift takes a moment to build and fade. Holding forever climbs too high; long releases lose altitude.',
-    cue: 'Keep altitude near the next gate, usually 5–7 m. Aim for small rises and falls.',
+    cue: 'Keep a low, stable altitude above the asphalt. Aim for small rises and falls.',
   },
   {
     title: 'Bank with wing extent',
@@ -26,7 +26,7 @@ export const LESSONS = [
     action:
       'While powering both wings, add T to bank toward screen-left or G toward screen-right. They extend opposite wings. Release early and watch your drift.',
     why: 'Use the opposite extent muscle to counter a bank. Holding both increases both wings’ lift. These directions refer to the chase-camera view; the controls act through wing forces, so balance still matters.',
-    cue: 'Line up with the gate before reaching it. Return toward level as you approach its center.',
+    cue: 'Follow the asphalt through each turn. Return toward level before the edge wall.',
   },
   {
     title: 'Add speed with wing pitch',
@@ -40,9 +40,9 @@ export const LESSONS = [
     title: 'Put it together',
     keys: ['Q', 'W', 'A', 'S', 'T', 'G'],
     action:
-      'Launch, settle near 5 m, and clear the first two centered gates. Then add one extent muscle at a time to align with the offset gates.',
-    why: 'Get altitude right first, line up next, then add speed if you have room. Space pauses immediately. Training pace is optional if you want more time to practice.',
-    cue: 'Clear all eight gates in order. After a miss, replay your flight to see the muscle activity that caused it.',
+      'Launch, settle near the asphalt, and follow the first two sectors. Then add one extent muscle at a time to make each bend.',
+    why: 'Get altitude right first, line up next, then add speed if you have room. The circuit edge bounces you back instead of ending the run. Space pauses immediately.',
+    cue: 'Follow the coloured lane through every sector and cross the finish gate to complete the lap.',
   },
 ];
 
@@ -72,7 +72,7 @@ export default function FlightTutorial({
           ? `Bank ${((Math.abs(flight.roll) * 180) / Math.PI).toFixed(0)}° · release early to limit drift`
           : step === 3
             ? `Forward speed ${Math.max(0, flight.velocity.z).toFixed(1)} m/s`
-            : `${flight.checkpoint} of 8 gates cleared`);
+            : `${Math.min(flight.checkpoint + 1, RACE_SECTOR_COUNT)} of ${RACE_SECTOR_COUNT} circuit sectors reached`);
 
   return (
     <section
