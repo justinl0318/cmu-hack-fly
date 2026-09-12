@@ -23,18 +23,25 @@ export interface Vector { x: number; y: number; z: number }
 export interface FlightState {
   position: Vector; velocity: Vector; angularVelocity: Vector;
   roll: number; pitch: number; yaw: number; elapsed: number; checkpoint: number;
-  finished: boolean; crashed: boolean; fatigue: number[]; muscle: number[];
+  launched: boolean; finished: boolean; crashed: boolean; fatigue: number[]; muscle: number[];
   distance: number; stability: number;
 }
 export function createFlightState(): FlightState {
   return { position: { x: 0, y: 5, z: 0 }, velocity: { x: 0, y: 0, z: 0 },
     angularVelocity: { x: 0, y: 0, z: 0 }, roll: 0, pitch: 0, yaw: 0,
-    elapsed: 0, checkpoint: 0, finished: false, crashed: false,
+    elapsed: 0, checkpoint: 0, launched: false, finished: false, crashed: false,
     fatigue: Array(10).fill(0), muscle: Array(10).fill(0), distance: 0, stability: 1 };
 }
 const clamp = (v: number, low: number, high: number) => Math.min(high, Math.max(low, v));
 export function stepFlight(s: FlightState, activations: number[], delta: number): FlightState {
   if (s.finished || s.crashed || !Number.isFinite(delta) || delta <= 0) return s;
+  // The launch perch is a preparation state, not an airborne hover assist.
+  // All four primary wing outputs must fire before the race clock/gravity starts.
+  if (!s.launched) {
+    if (![0, 1, 5, 6].every(i => Number.isFinite(activations[i]) && activations[i] >= .5)) return s;
+    s.launched = true;
+    s.muscle = Array.from({ length: 10 }, (_, i) => clamp(activations[i] || 0, 0, 1));
+  }
   // Fixed maximum substeps keep collisions and integration stable after frame stalls.
   let remaining = Math.min(delta, .25);
   while (remaining > 1e-8 && !s.crashed && !s.finished) {
@@ -43,13 +50,13 @@ export function stepFlight(s: FlightState, activations: number[], delta: number)
     s.elapsed += dt;
     for (let i = 0; i < 10; i++) {
       const a = clamp(Number.isFinite(activations[i]) ? activations[i] : 0, 0, 1);
-      s.fatigue[i] = clamp(s.fatigue[i] + dt * (a * .085 - (1 - a) * .16), 0, .8);
-      s.muscle[i] += (a * (1 - .38 * s.fatigue[i]) - s.muscle[i]) * (1 - Math.exp(-dt * 13));
+      s.fatigue[i] = clamp(s.fatigue[i] + dt * (a * .022 - (1 - a) * .09), 0, .8);
+      s.muscle[i] += (a * (1 - .25 * s.fatigue[i]) - s.muscle[i]) * (1 - Math.exp(-dt * 13));
     }
     const m = s.muscle;
     const wing = (i: number) => (m[i] * .73 + Math.sqrt(m[i] * m[i + 1]) * .47) * (1 + m[i + 4] * .32);
     const left = wing(0), right = wing(5);
-    const lift = (left + right) * 7.7;
+    const lift = (left + right) * 3.9;
     const twist = (m[2] + m[7] - m[3] - m[8]) * .5;
     const av = s.angularVelocity;
     av.z += ((left - right) * 2.5 - s.roll * .75 - av.z * 2.8) * dt;
@@ -58,9 +65,9 @@ export function stepFlight(s: FlightState, activations: number[], delta: number)
     s.roll = clamp(s.roll + av.z * dt, -1.45, 1.45);
     s.pitch = clamp(s.pitch + av.x * dt, -.8, .8);
     s.yaw = clamp(s.yaw + av.y * dt, -1.2, 1.2);
-    const thrust = (left + right) * (1.6 + Math.max(-.65, twist) * 3.5);
-    s.velocity.x += (Math.sin(s.roll) * lift * .60 + Math.sin(s.yaw) * thrust - s.velocity.x * .9) * dt;
-    s.velocity.y += (Math.cos(s.roll) * Math.cos(s.pitch) * lift - 9.81 - s.velocity.y * 1.6) * dt;
+    const thrust = (left + right) * (1.3 + Math.max(-.65, twist) * 3.5);
+    s.velocity.x += (Math.sin(s.roll) * lift * 1.1 + Math.sin(s.yaw) * thrust - s.velocity.x * .9) * dt;
+    s.velocity.y += (Math.cos(s.roll) * Math.cos(s.pitch) * lift - 4.8 - s.velocity.y * 2.8) * dt;
     s.velocity.z += (Math.cos(s.yaw) * thrust - s.velocity.z * .40) * dt;
     for (const k of ['x', 'y', 'z'] as const) s.position[k] += s.velocity[k] * dt;
     s.distance = Math.max(s.distance, s.position.z);

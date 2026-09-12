@@ -43,7 +43,7 @@ export default function Home() {
   const [ready, setReady] = useState(false);
   const [running, setRunning] = useState(false);
   const [started, setStarted] = useState(false);
-  const [slow, setSlow] = useState(false);
+  const [slow, setSlow] = useState(true);
   const [replay, setReplay] = useState(false);
   const [pressed, setPressed] = useState<string[]>([]);
   const [spikes, setSpikes] = useState<string[]>([]);
@@ -53,7 +53,7 @@ export default function Home() {
   const flightRef = useRef(createFlightState());
   const runRef = useRef(false);
   const replayRef = useRef(false);
-  const slowRef = useRef(false);
+  const slowRef = useRef(true);
   const activationRef = useRef<number[]>(Array(10).fill(0));
   const held = useRef(new Set<string>());
   const history = useRef<
@@ -179,7 +179,7 @@ export default function Home() {
         stepFlight(
           flightRef.current,
           activationRef.current,
-          dt * (slowRef.current ? 0.25 : 1),
+          dt * (slowRef.current ? 0.5 : 1),
         );
         accumulator += dt;
         if (accumulator >= 0.04) {
@@ -194,6 +194,7 @@ export default function Home() {
           if (history.current.length > 300) history.current.shift();
         }
         if (flightRef.current.crashed || flightRef.current.finished) {
+          setFlight(structuredClone(flightRef.current));
           runRef.current = false;
           setRunning(false);
           held.current.clear();
@@ -214,7 +215,7 @@ export default function Home() {
       const key = e.key.toLowerCase();
       if (CHANNELS.some((c) => c.key === key)) {
         e.preventDefault();
-        if (!e.repeat) setKey(key, true);
+        if (!held.current.has(key)) setKey(key, true);
       }
       if (e.code === 'Space') {
         e.preventDefault();
@@ -406,10 +407,10 @@ export default function Home() {
                   {flight.finished
                     ? `Eight gates. ${clock}. Your wings found their rhythm.`
                     : flight.crashed
-                      ? 'A missed gate or a hard landing. Try shorter pulses and balance both wings.'
+                      ? 'A missed gate or a hard landing. Try steady holds and balance both wings.'
                       : started
                         ? 'Your fly is waiting. Pick up where you left off.'
-                        : 'Coordinate ten muscle channels to carry one tiny fly through eight gates.'}
+                        : 'Take your time preparing both wings. Hold Q + W + A + S to lift off when you’re ready.'}
                 </p>
                 <button
                   className="primary-button"
@@ -426,15 +427,42 @@ export default function Home() {
                       ? 'Try another flight'
                       : started
                         ? 'Resume flight'
-                        : 'Begin flight'}
+                        : 'Prepare for takeoff'}
                 </button>
               </div>
+            )}
+            {running && !flight.launched && !replay && (
+              <output className="race-overlay takeoff-guide">
+                <span className="eyebrow">SAFE LAUNCH · NO TIME LIMIT</span>
+                <h2>Bring both wings online.</h2>
+                <p>
+                  Hold Q + W and A + S. Keep holding to build power; takeoff
+                  begins when all four muscles respond.
+                </p>
+                <div
+                  className="launch-keys"
+                  aria-label="Takeoff muscle readiness"
+                >
+                  {[0, 1, 5, 6].map((i) => (
+                    <span
+                      key={i}
+                      className={activations[i] >= 0.5 ? 'ready' : ''}
+                    >
+                      {keys[i]}
+                    </span>
+                  ))}
+                </div>
+              </output>
             )}
             <div className="hud-note">
               {replay
                 ? 'REPLAY · ⅓ SPEED'
                 : running
-                  ? 'Q W E R T / A S D F G · SPACE TO PAUSE'
+                  ? !flight.launched
+                    ? 'HOLD Q + W + A + S · NO RAPID TAPPING NEEDED'
+                    : slow
+                      ? 'TRAINING PACE · ½ SPEED · SPACE TO PAUSE'
+                      : 'FULL SPEED · SPACE TO PAUSE'
                   : 'MATCH BOTH WINGS. THEN EXPERIMENT.'}
             </div>
           </div>
@@ -508,14 +536,14 @@ export default function Home() {
             <label htmlFor="slow-flight">
               <Switch
                 id="slow-flight"
-                aria-label="Slow flight simulation"
+                aria-label="Training pace at half speed"
                 checked={slow}
                 onCheckedChange={(v) => {
                   setSlow(v);
                   slowRef.current = v;
                 }}
               />
-              Slow flight
+              Training pace · ½ speed
             </label>
             <button
               className="quiet-button"
@@ -537,7 +565,7 @@ export default function Home() {
             <h2>Find the balance.</h2>
           </div>
           <p>
-            Hold keys to stimulate. Release to relax.
+            Steady holds build power. Release to ease off.
             <br />
             Wing-pitch commands compete; sustained effort fatigues.
           </p>
@@ -637,8 +665,8 @@ export default function Home() {
           <p>
             <strong>Animation:</strong> activity comes from the same simulation
             as the controls. Traveling pulse speeds and paths are illustrative.
-            Slow flight slows biomechanics only; replay slows recorded flight
-            and activity together.
+            Training pace slows biomechanics to half speed; neural activity
+            stays real-time. Replay slows recorded flight and activity together.
           </p>
           <p>
             Source: MaleCNS v1.0 / FlyEM, HHMI Janelia Research Campus, Google
@@ -680,10 +708,13 @@ export default function Home() {
             Stroke extent changes wing amplitude.
           </p>
           <p>
-            Begin with Q + W and A + S together. Pulse the pairs to maintain
-            altitude, then experiment with T and G separately to change each
-            wing’s stroke extent. Power pairs support a full wingbeat. Opposing
-            wing-pitch commands cancel while still costing effort.
+            You stay safely at the start until Q + W and A + S are held
+            together. Keep holding for lift, then release for a gentle descent.
+            Rapid tapping is unnecessary. Training pace is on by default to give
+            you twice as long to react. Experiment with T and G separately to
+            change each wing’s stroke extent. Power pairs support a full
+            wingbeat. Opposing wing-pitch commands cancel while still costing
+            effort.
           </p>
         </DialogContent>
       </Dialog>

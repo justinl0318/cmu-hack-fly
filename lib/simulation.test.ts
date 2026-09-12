@@ -5,14 +5,19 @@ import fs from 'node:fs';
 // @ts-expect-error Node's native TypeScript runner requires the explicit .ts extension.
 import { createFlightState, stepFlight, RINGS } from './simulation.ts';
 
-void test('unstimulated fly falls under gravity', () => {
-  const s = createFlightState();
-  for (let i = 0; i < 300; i++) stepFlight(s, [], 1 / 120);
-  assert.equal(s.crashed, true);
-  assert.equal(s.position.y, .45);
+void test('launch perch is safe indefinitely without balanced wing output', () => {
+  const s = createFlightState(), initial = createFlightState();
+  for (let i = 0; i < 1200; i++) stepFlight(s, [], .1);
+  assert.deepEqual(s, initial);
+  for (let i = 0; i < 120; i++) stepFlight(s, [1, 1], .1);
+  assert.deepEqual(s, initial);
+  stepFlight(s, [.5, .5, 0, 0, 0, .5, .5], .02);
+  assert.equal(s.launched, true);
+  assert.ok(s.elapsed > 0);
 });
 void test('matched muscles balance roll; unilateral wing muscles cause roll', () => {
   const balanced = createFlightState(), asymmetric = createFlightState();
+  balanced.launched = true; asymmetric.launched = true;
   for (let i = 0; i < 100; i++) {
     stepFlight(balanced, [.7, .5, 0, 0, 0, .7, .5, 0, 0, 0], 1 / 120);
     stepFlight(asymmetric, [.7, .5, 0, 0, 0, 0, 0, 0, 0, 0], 1 / 120);
@@ -23,7 +28,7 @@ void test('matched muscles balance roll; unilateral wing muscles cause roll', ()
 });
 void test('checkpoint crossing uses segment intersection and rejects misses', () => {
   const hit = createFlightState(), miss = createFlightState();
-  for (const s of [hit, miss]) { s.position.z = RINGS[0].z - .02; s.velocity.z = 30; }
+  for (const s of [hit, miss]) { s.launched = true; s.position.z = RINGS[0].z - .02; s.velocity.z = 30; }
   miss.position.x = 10;
   stepFlight(hit, [], .02); stepFlight(miss, [], .02);
   assert.equal(hit.checkpoint, 1);
@@ -32,7 +37,7 @@ void test('checkpoint crossing uses segment intersection and rejects misses', ()
 });
 void test('flight is deterministic and reset restores fatigue', () => {
   const a = createFlightState(), b = createFlightState();
-  for (let i = 0; i < 120; i++) for (const s of [a, b]) stepFlight(s, Array(10).fill(.7), 1 / 120);
+  for (let i = 0; i < 120; i++) for (const s of [a, b]) stepFlight(s, Array(10).fill(1), 1 / 120);
   assert.deepEqual(a, b);
   assert.ok(a.fatigue[0] > 0);
   assert.equal(createFlightState().fatigue[0], 0);
@@ -89,20 +94,39 @@ void test('each real selected pathway activates its own muscle independently', (
     assert.ok(activity.every((v, i) => i === channel || v === 0), `channel ${key} must be independently playable`);
   });
 });
-void test('coordinated real-key stimulation can complete all eight gates', () => {
-  const worker = realWorker(), s = createFlightState();
-  // Feedback pilot uses six muscle keys; no direct force or output injection.
-  for (let i = 0; i < 6000 && !s.crashed && !s.finished; i++) {
-    const target = RINGS[s.checkpoint], keys: string[] = [];
-    if (s.position.y + s.velocity.y * .5 < target.y) keys.push('q', 'w', 'a', 's');
-    const desiredRoll = Math.max(-.3, Math.min(.3, (target.x - s.position.x) * .08 - s.velocity.x * .16));
-    if (desiredRoll > s.roll + s.angularVelocity.z * .3 + .02) keys.push('t');
-    if (desiredRoll < s.roll + s.angularVelocity.z * .3 - .02) keys.push('g');
-    stepFlight(s, worker(keys), .02);
+void test('deliberate real-key holds clear all eight gates at human decision cadence', () => {
+  // All feedback is sampled at 0.6, 0.8 or 1.0 seconds. Keys cannot change in
+  // between decisions, so every new hold/release lasts at least that interval.
+  for (const decisionSeconds of [.6, .8, 1]) {
+    const worker = realWorker(), s = createFlightState();
+    const decisionSteps = Math.round(decisionSeconds / .02);
+    let keys: string[] = [];
+    for (let i = 0; i < 6000 && !s.crashed && !s.finished; i++) {
+      if (i % decisionSteps === 0) {
+        const target = RINGS[s.checkpoint]; keys = [];
+        if (!s.launched || s.position.y + s.velocity.y * .6 < target.y) keys.push('q', 'w', 'a', 's');
+        const desiredRoll = Math.max(-.3, Math.min(.3, (target.x - s.position.x) * .08 - s.velocity.x * .2));
+        if (desiredRoll > s.roll + s.angularVelocity.z * .5 + .02) keys.push('t');
+        if (desiredRoll < s.roll + s.angularVelocity.z * .5 - .02) keys.push('g');
+      }
+      stepFlight(s, worker(keys), .02);
+    }
+    assert.equal(s.crashed, false, `${decisionSeconds}s decision cadence must be playable`);
+    assert.equal(s.finished, true);
+    assert.equal(s.checkpoint, 8);
   }
+});
+void test('holding primary wing muscles provides time to learn; release eventually falls', () => {
+  const worker = realWorker(), s = createFlightState();
+  for (let i = 0; i < 150; i++) stepFlight(s, worker(['q', 'w', 'a', 's']), .02);
+  assert.equal(s.launched, true);
   assert.equal(s.crashed, false);
-  assert.equal(s.finished, true);
-  assert.equal(s.checkpoint, 8);
+  assert.ok(s.position.y > 5);
+  for (let i = 0; i < 50; i++) stepFlight(s, worker([]), .02);
+  assert.equal(s.crashed, false, 'one second of release gives time to react');
+  for (let i = 0; i < 600 && !s.crashed; i++) stepFlight(s, worker([]), .02);
+  assert.equal(s.crashed, true);
+  assert.equal(s.position.y, .45);
 });
 void test('holding every real control does not win', () => {
   const worker = realWorker(), s = createFlightState();

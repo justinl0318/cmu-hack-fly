@@ -9,9 +9,9 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. Use Q/W/E/R/T for left-wing muscle channels and A/S/D/F/G for right-wing channels. Begin with Q+W and A+S; pulse to maintain altitude. Use T/G asymmetrically to bank and E/D or R/F for wing pitch. Space pauses. The on-screen keys support pointer/touch holds. Many keyboards limit simultaneous key presses; try pulsing pairs if a chord is not registered.
+Open http://localhost:3000. Use Q/W/E/R/T for left-wing muscle channels and A/S/D/F/G for right-wing channels. Click Prepare for takeoff: the fly waits safely while you place your hands. Hold Q+W and A+S until all four output channels respond, which starts takeoff. Continue holding for lift; release to descend. Use T/G asymmetrically to bank and E/D or R/F for wing pitch. Space pauses. The on-screen keys support pointer/touch holds. Some keyboards limit simultaneous key presses; the four readiness indicators show which launch channels are responding.
 
-Replay shows the latest ~12 seconds of captured flight/activity at one-third speed. Slow flight slows biomechanics to one-quarter speed while keeping neural activity real-time for training. Blur and hidden tabs pause the game.
+Replay shows the latest ~12 seconds of captured flight/activity at one-third speed. Training pace defaults to half-speed biomechanics while keeping neural activity real-time. Turn it off for full speed. Blur and hidden tabs pause the game. Once launched, releasing all muscles eventually causes a crash; the preparation support is no longer active.
 
 ## Data and model
 
@@ -41,6 +41,6 @@ npx tsc --noEmit
 npm run build
 ```
 
-Nine tests cover real pathway independence, connection ablation, reset, fatigue, physics, ordered gates, and an eight-gate flight driven by actual worker output. A simultaneous all-key hold must fail. Browser rendering/interaction QA was not run because no browser was available in this session. Optional WebMCP read/reset tools are feature-detected; a supported WebMCP validation context was unavailable, so those tools are not verified.
+Tests cover real pathway independence, connection ablation, safe launch, reset, fatigue, physics, ordered gates, and complete flights with key decisions only every 0.6, 0.8, or 1.0 seconds. A simultaneous all-key hold must fail. Browser rendering/interaction QA was not run because no browser was available in this session. Optional WebMCP read/reset tools are feature-detected; a supported WebMCP validation context was unavailable, so those tools are not verified.
 
 Data: MaleCNS/FlyEM, HHMI Janelia Research Campus, Google Research and collaborators, CC-BY 4.0. Artificial muscle-action assignments and simulation constants are documented in-app.

@@ -690,3 +690,30 @@ h1 span {
 .brain-loading {
   max-height: 100%;
 }
+.takeoff-guide > * {
+  pointer-events: none;
+}
+.takeoff-guide h2 {
+  font-size: clamp(24px, 2.4vw, 34px);
+}
+.launch-keys {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+.launch-keys span {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #5b7072;
+  border-radius: 5px;
+  font: 22px monospace;
+  color: #9cacaf;
+  background: #152427;
+}
+.launch-keys span.ready {
+  color: #172214;
+  background: var(--primary);
+  border-color: var(--primary);
+}
