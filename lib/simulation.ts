@@ -1,7 +1,8 @@
 import {
   FINISH_Z,
   FOOD,
-  courseX,
+  projectTrack,
+  LAPS,
   KITCHEN_PROPS,
   KITCHEN_BOXES,
   HAZARDS,
@@ -53,6 +54,9 @@ export interface FlightState {
   yaw: number;
   elapsed: number;
   checkpoint: number;
+  lap: number;
+  routeProgress: number;
+  previousProgress: number;
   launched: boolean;
   finished: boolean;
   crashed: boolean;
@@ -75,6 +79,9 @@ export function createFlightState(): FlightState {
     yaw: 0,
     elapsed: 0,
     checkpoint: 0,
+    lap: 1,
+    routeProgress: 0,
+    previousProgress: 0,
     launched: false,
     finished: false,
     crashed: false,
@@ -91,7 +98,7 @@ export function createFlightState(): FlightState {
 const clamp = (v: number, low: number, high: number) =>
   Math.min(high, Math.max(low, v));
 /** A hit knocks the fly down; the rest timer starts only after landing. */
-function stun(s: FlightState) {
+export function stun(s: FlightState) {
   if (s.stunRemaining > 0 || s.recoveryRemaining > 0) return;
   s.stunRemaining = 1.2;
   s.velocity = { x: 0, y: -8, z: 0 };
@@ -179,15 +186,15 @@ export function stepFlight(
     av.y += ((m[2] - m[3] - (m[7] - m[8])) * 2.2 - av.y * 3.5) * dt;
     s.roll = clamp(s.roll + av.z * dt, -0.65, 0.65);
     s.pitch = clamp(s.pitch + av.x * dt, -0.8, 0.8);
-    s.yaw = clamp(s.yaw + av.y * dt, -1.2, 1.2);
+    s.yaw += av.y * dt;
     const thrust =
       (left + right) *
       Math.max(0, 1.75 + Math.max(-0.65, twist) * 3.5) *
       (s.boostRemaining > 0 ? 1.7 : 1);
     s.velocity.x +=
-      (Math.sin(s.roll) * lift * 1.7 +
+      (Math.cos(s.yaw) * Math.sin(s.roll) * lift * 1.7 +
         Math.sin(s.yaw) * thrust -
-        s.velocity.x * 1.2) *
+        s.velocity.x * 0.6) *
       dt;
     s.velocity.y +=
       (Math.cos(s.roll) * Math.cos(s.pitch) * lift -
@@ -195,17 +202,21 @@ export function stepFlight(
         Math.max(0, s.position.y - 6) * 0.8 -
         s.velocity.y * 3.8) *
       dt;
-    s.velocity.z += (Math.cos(s.yaw) * thrust - s.velocity.z * 0.4) * dt;
+    s.velocity.z +=
+      (Math.cos(s.yaw) * thrust -
+        Math.sin(s.yaw) * Math.sin(s.roll) * lift * 1.7 -
+        s.velocity.z * 0.6) *
+      dt;
     for (const k of ['x', 'y', 'z'] as const)
       s.position[k] += s.velocity[k] * dt;
-    s.distance = Math.max(s.distance, s.position.z);
+
     s.stability = clamp(
       1 - Math.abs(s.roll) / 1.3 - Math.abs(s.pitch) / 2,
       0,
       1,
     );
     // Landmarks measure progress; no mandatory gates or collision deaths.
-    s.checkpoint = RINGS.filter((r) => s.position.z >= r.z).length;
+
     for (const h of HAZARDS) {
       if (
         Math.hypot(s.position.x - h.x, s.position.z - h.z) > h.radius ||
@@ -217,7 +228,10 @@ export function stepFlight(
         s.velocity.x *= Math.exp(-dt * 2);
         s.velocity.z *= Math.exp(-dt * 2);
       }
-      if (h.kind === 'juice') s.velocity.z += dt * 5;
+      if (h.kind === 'juice') {
+        s.velocity.x += Math.sin(h.yaw) * dt * 5;
+        s.velocity.z += Math.cos(h.yaw) * dt * 5;
+      }
       if (h.kind === 'fan') {
         s.velocity.x += dt * 5;
         s.velocity.y += dt * 2;
@@ -250,10 +264,12 @@ export function stepFlight(
     }
     if (s.stunRemaining > 0) continue;
     for (const box of KITCHEN_BOXES) {
+      const dx = s.position.x - box.x,
+        dz = s.position.z - box.z;
       const offsets = {
-        x: s.position.x - box.x,
+        x: dx * Math.cos(box.yaw) - dz * Math.sin(box.yaw),
         y: s.position.y - box.y,
-        z: s.position.z - box.z,
+        z: dx * Math.sin(box.yaw) + dz * Math.cos(box.yaw),
       };
       const penetration = {
         x: box.w / 2 + 0.4 - Math.abs(offsets.x),
@@ -269,30 +285,47 @@ export function stepFlight(
             ? 'y'
             : 'z';
       const sign = offsets[axis] >= 0 ? 1 : -1;
-      s.position[axis] += sign * penetration[axis];
-      if (s.velocity[axis] * sign < 0) {
-        const impact = Math.abs(s.velocity[axis]);
-        s.velocity[axis] *= -0.3;
-        if (impact > 0.5) stun(s);
+      const nx =
+        axis === 'x'
+          ? Math.cos(box.yaw) * sign
+          : axis === 'z'
+            ? Math.sin(box.yaw) * sign
+            : 0;
+      const nz =
+        axis === 'x'
+          ? -Math.sin(box.yaw) * sign
+          : axis === 'z'
+            ? Math.cos(box.yaw) * sign
+            : 0;
+      const ny = axis === 'y' ? sign : 0;
+      s.position.x += nx * penetration[axis];
+      s.position.y += ny * penetration[axis];
+      s.position.z += nz * penetration[axis];
+      const impact = s.velocity.x * nx + s.velocity.y * ny + s.velocity.z * nz;
+      if (impact < 0) {
+        s.velocity.x -= impact * 1.3 * nx;
+        s.velocity.y -= impact * 1.3 * ny;
+        s.velocity.z -= impact * 1.3 * nz;
+        if (-impact > 0.5) stun(s);
       }
     }
     if (s.stunRemaining > 0) continue;
-    for (const [axis, low, high] of [
-      ['x', courseX(s.position.z) - 23, courseX(s.position.z) + 23],
-      ['y', 0.45, 24],
-      ['z', -5, FINISH_Z + 2],
-    ] as const) {
-      if (s.position[axis] < low) {
-        if (axis !== 'y') stun(s);
-        s.position[axis] = low;
-        s.velocity[axis] = Math.abs(s.velocity[axis]) * 0.3;
-      }
-      if (s.position[axis] > high) {
-        stun(s);
-        s.position[axis] = high;
-        s.velocity[axis] = -Math.abs(s.velocity[axis]) * 0.3;
-      }
+    const road = projectTrack(s.position.x, s.position.z);
+    if (road.distance > 23) {
+      const scale = 23 / road.distance;
+      s.position.x = road.x + (s.position.x - road.x) * scale;
+      s.position.z = road.z + (s.position.z - road.z) * scale;
+      stun(s);
     }
+    if (s.position.y < 0.45) {
+      s.position.y = 0.45;
+      s.velocity.y = Math.max(0, s.velocity.y);
+    }
+    if (s.position.y > 24) {
+      s.position.y = 24;
+      stun(s);
+    }
+    updateRaceProgress(s);
     if (s.stunRemaining === 0)
       for (const food of FOOD) {
         if (
@@ -307,10 +340,29 @@ export function stepFlight(
           s.boostRemaining = 2.5;
         }
       }
-    if (s.stunRemaining === 0 && s.position.z >= FINISH_Z) {
-      s.finished = true;
-      s.checkpoint = RINGS.length;
-    }
   }
   return s;
+}
+
+/** Signed travel prevents start-line farming, backwards laps and shortcut jumps. */
+export function updateRaceProgress(s: FlightState) {
+  const p = projectTrack(s.position.x, s.position.z);
+  let delta = p.progress - s.previousProgress;
+  if (delta > FINISH_Z / 2) delta -= FINISH_Z;
+  if (delta < -FINISH_Z / 2) delta += FINISH_Z;
+  s.previousProgress = p.progress;
+  if (p.distance > 23.5 || Math.abs(delta) > 4 || s.stunRemaining > 0) return;
+  s.routeProgress += delta;
+  s.distance = Math.max(s.distance, s.routeProgress);
+  const lap = Math.min(
+    LAPS,
+    Math.floor(Math.max(0, s.distance) / FINISH_Z) + 1,
+  );
+  if (lap > s.lap) s.collectedFood = [];
+  s.lap = lap;
+  s.checkpoint = Math.floor((Math.max(0, s.routeProgress) / FINISH_Z) * 8);
+  if (s.routeProgress >= FINISH_Z * LAPS - 0.02) {
+    s.finished = true;
+    s.lap = LAPS;
+  }
 }

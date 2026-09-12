@@ -1,5 +1,12 @@
 import * as THREE from 'three';
-import { FINISH_Z, HAZARDS, FOOD, courseX, hazardActive } from './kitchen';
+import {
+  FINISH_Z,
+  LOCAL_HAZARDS as HAZARDS,
+  LOCAL_FOOD as FOOD,
+  courseX,
+  hazardActive,
+  trackPoint,
+} from './kitchen';
 
 /** Original procedural props: no external models, textures or licensing dependencies. */
 export function buildKitchen(scene: THREE.Scene) {
@@ -130,10 +137,10 @@ export function buildKitchen(scene: THREE.Scene) {
   scene.add(boardSticker);
   const roadVertices: number[] = [],
     roadIndices: number[] = [];
-  for (let i = 0; i <= FINISH_Z + 28; i++) {
-    const z = i - 10;
+  for (let i = 0; i <= FINISH_Z; i++) {
+    const z = i;
     roadVertices.push(courseX(z) - 24, 0, z, courseX(z) + 24, 0, z);
-    if (i < FINISH_Z + 28) {
+    if (i < FINISH_Z) {
       const k = i * 2;
       roadIndices.push(k, k + 2, k + 1, k + 1, k + 2, k + 3);
     }
@@ -146,7 +153,7 @@ export function buildKitchen(scene: THREE.Scene) {
   road.setIndex(roadIndices);
   road.computeVertexNormals();
   mesh(road, '#edc38c', 0, -0.03, 0);
-  for (let z = -8; z < FINISH_Z + 18; z += 2)
+  for (let z = 0; z < FINISH_Z; z += 2)
     for (const x of [-24, 24]) {
       const curb = box(
         x,
@@ -160,14 +167,7 @@ export function buildKitchen(scene: THREE.Scene) {
       curb.rotation.y = Math.atan2(courseX(z + 1) - courseX(z - 1), 2);
     }
 
-  // Pale tiles and wooden counter edges establish human-scale surroundings.
-  box(0, 16, FINISH_Z + 19, 58, 34, 2, '#cae5d6');
-  for (let x = -28; x <= 28; x += 7)
-    box(x, 16, FINISH_Z + 17.9, 0.08, 34, 0.05, '#f8f4da');
-  for (let y = 0; y < 34; y += 6)
-    box(0, y, FINISH_Z + 17.8, 58, 0.08, 0.05, '#f8f4da');
-
-  for (let z = -4; z < FINISH_Z; z += 4) {
+  for (let z = 0; z < FINISH_Z; z += 4) {
     for (const x of [-4, 4]) box(x, 0.025, z, 0.16, 0.05, 1.8, '#4ba994');
     if (z % 12 === 8) {
       const arrow = mesh(
@@ -322,7 +322,7 @@ export function buildKitchen(scene: THREE.Scene) {
         (i + j) % 2 ? '#fff8e8' : '#344b4e',
       );
   box(0, 0.08, FINISH_Z, 46, 0.1, 1, '#fff8e8');
-  label('FINISH · BON APPÉTIT!', 0, 19, FINISH_Z);
+  label('START / FINISH - 1 LAP', 0, 19, FINISH_Z);
   // Clearly marked hazard footprints; timed hazards pulse before activating.
   const zones = HAZARDS.map((h) => {
     const color =
@@ -407,6 +407,44 @@ export function buildKitchen(scene: THREE.Scene) {
     halo.rotation.x = Math.PI / 2;
     return fruit;
   });
+  // Bend the original kitchen around a shared closed centerline.
+  for (const object of scene.children) {
+    if (
+      !(
+        object instanceof THREE.Mesh ||
+        object instanceof THREE.Group ||
+        object instanceof THREE.Sprite
+      )
+    )
+      continue;
+    if (
+      object instanceof THREE.Mesh &&
+      (object.geometry === road ||
+        object.geometry instanceof THREE.TubeGeometry)
+    ) {
+      const positions = object.geometry.getAttribute('position');
+      for (let i = 0; i < positions.count; i++) {
+        const z = positions.getZ(i),
+          p = trackPoint(z, positions.getX(i) - courseX(z));
+        positions.setX(i, p.x);
+        positions.setZ(i, p.z);
+      }
+      positions.needsUpdate = true;
+      object.geometry.computeVertexNormals();
+      object.geometry.computeBoundingSphere();
+    } else {
+      const z = object.position.z,
+        p = trackPoint(z, object.position.x - courseX(z));
+      object.position.x = p.x;
+      object.position.z = p.z;
+      object.quaternion.premultiply(
+        new THREE.Quaternion().setFromAxisAngle(
+          new THREE.Vector3(0, 1, 0),
+          p.yaw,
+        ),
+      );
+    }
+  }
   return {
     update(elapsed: number, collected: number[] = []) {
       snacks.forEach((fruit, i) => {

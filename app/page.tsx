@@ -10,13 +10,15 @@ import {
   Play,
   RotateCcw,
 } from 'lucide-react';
+import ProfileSetup from '@/components/ProfileSetup';
+import { normalizeProfile, type PlayerProfile } from '@/lib/profile';
+import MultiplayerGame from '@/components/MultiplayerGame';
 import BrainView, { type Circuit } from '@/components/BrainView';
 import Link from 'next/link';
 import RaceView from '@/components/RaceView';
 import FlightTutorial, { LESSONS } from '@/components/FlightTutorial';
 import { createFlightState, stepFlight } from '@/lib/simulation';
 import { interpolateReplay, type ReplayFrame } from '@/lib/replay';
-import { FINISH_Z } from '@/lib/kitchen';
 import { CONTROLS, muscleInputs } from '@/lib/controls';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -27,7 +29,7 @@ import {
 } from '@/components/ui/dialog';
 
 const keys = CONTROLS.map((c) => c.key.toUpperCase());
-export default function Home() {
+export function SoloGame({ profile }: { profile: PlayerProfile }) {
   const [help, setHelp] = useState(false);
   const [lesson, setLesson] = useState(0);
   const [guide, setGuide] = useState(false);
@@ -381,7 +383,7 @@ export default function Home() {
               <span className="live-dot" /> KITCHEN COUNTER CHAOS
             </span>
             <div className="race-actions">
-              <span>REACH THE FINISH</span>
+              <span>1 LAP SPRINT</span>
               <button
                 aria-label={running ? 'Pause flight' : 'Resume flight'}
                 title="Pause / resume · Space"
@@ -402,17 +404,17 @@ export default function Home() {
             </div>
           </div>
           <div className="scene-container">
-            <RaceView state={flight} replay={replay} />
+            <RaceView state={flight} replay={replay} look={profile.look} />
             {!running && !replay && (
               <div className="race-overlay">
                 <span className="eyebrow">
                   {flight.finished
-                    ? 'FINISH LINE REACHED'
+                    ? 'LAP COMPLETE'
                     : flight.crashed
                       ? 'EVERY FLIGHT IS AN EXPERIMENT'
                       : started
                         ? 'TAKE A BREATH'
-                        : 'KITCHEN COUNTER CHAOS / FINISH RUN'}
+                        : 'KITCHEN COUNTER CHAOS / 1 LAP'}
                 </span>
                 <h2>
                   {flight.finished
@@ -430,7 +432,7 @@ export default function Home() {
                       ? 'A missed gate or a hard landing. Try steady holds and balance both wings.'
                       : started
                         ? 'Your fly is waiting. Pick up where you left off.'
-                        : 'Hold W + O to launch. Reach the checkered finish at the far end of the kitchen. Hits briefly stun you on the counter. Recover and keep flying.'}
+                        : 'Hold W + O to launch. Complete one lap and return to the same checkered finish. Hits briefly stun you on the counter. Recover and keep flying.'}
                 </p>
                 <button
                   className="primary-button"
@@ -516,10 +518,9 @@ export default function Home() {
               </b>
             </span>
             <span>
-              COURSE{' '}
+              LAP{' '}
               <b>
-                {Math.min(100, Math.floor((flight.distance / FINISH_Z) * 100))}{' '}
-                <small>%</small>
+                {flight.lap} <small>/ 1</small>
               </b>
             </span>
             <span>
@@ -762,5 +763,57 @@ export default function Home() {
         </DialogContent>
       </Dialog>
     </main>
+  );
+}
+
+export default function Home() {
+  const [mode, setMode] = useState<'single' | 'multi' | null>(null);
+  const [profile, setProfile] = useState(() => normalizeProfile(null));
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    let live = true;
+    queueMicrotask(() => {
+      if (!live) return;
+      try {
+        setProfile(
+          normalizeProfile(
+            JSON.parse(localStorage.getItem('flycircuit-profile-v1') || 'null'),
+          ),
+        );
+      } catch {}
+      setLoaded(true);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  if (mode === 'multi')
+    return <MultiplayerGame profile={profile} onBack={() => setMode(null)} />;
+  if (mode === 'single')
+    return (
+      <>
+        <button
+          className="mode-back quiet-button"
+          onClick={() => setMode(null)}
+        >
+          Edit profile / Modes
+        </button>
+        <SoloGame profile={profile} />
+      </>
+    );
+  if (!loaded)
+    return (
+      <main className="flight-lab">
+        <p>Preparing your fly…</p>
+      </main>
+    );
+  return (
+    <ProfileSetup
+      initial={profile}
+      onStart={(mode, profile) => {
+        setProfile(profile);
+        setMode(mode);
+      }}
+    />
   );
 }

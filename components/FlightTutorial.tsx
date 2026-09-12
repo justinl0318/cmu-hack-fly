@@ -1,7 +1,6 @@
 'use client';
 
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { FINISH_Z } from '@/lib/kitchen';
 import type { FlightState } from '@/lib/simulation';
 
 export const LESSONS = [
@@ -40,8 +39,8 @@ export const LESSONS = [
     title: 'Snack and sprint',
     keys: ['Q', 'W', 'E', 'I', 'O', 'P'],
     action:
-      'Follow the winding mint lane, collect floating fruit and cross the checkered finish.',
-    why: 'Fruit disappears when eaten and gives a short boost. Hits knock you down briefly; recovery protection lets you get moving again.',
+      'Follow the winding mint lane for one lap. Start and finish share the same checkered line.',
+    why: 'Fruit gives a short boost and returns for a new race. Hits knock you down briefly; recovery protection lets you get moving again.',
     cue: 'Choose an inside or outside line. Space pauses; Training pace slows the flight.',
   },
 ];
@@ -72,7 +71,7 @@ export default function FlightTutorial({
           ? `Bank ${((Math.abs(flight.roll) * 180) / Math.PI).toFixed(0)}° · release early to limit drift`
           : step === 3
             ? `Heading ${((flight.yaw * 180) / Math.PI).toFixed(0)}° · opposite yaw corrects it`
-            : `${Math.min(100, Math.floor((flight.distance / FINISH_Z) * 100))}% to the kitchen finish`);
+            : `Lap ${flight.lap} / 1 - complete the circuit`);
 
   return (
     <section

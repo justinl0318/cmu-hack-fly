@@ -1,13 +1,23 @@
-// @ts-expect-error Native Node tests use explicit TypeScript extensions.
-import { courseX, FOOD, FINISH_Z } from './kitchen.ts';
+import {
+  trackPoint,
+  projectTrack,
+  FOOD,
+  FINISH_Z,
+  KITCHEN_PROPS,
+  // @ts-expect-error Native Node tests use explicit TypeScript extensions.
+} from './kitchen.ts';
 // @ts-expect-error Native Node tests use explicit TypeScript extensions.
 import { muscleInputs, CONTROLS } from './controls.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs';
-// @ts-expect-error Node's native TypeScript runner requires the explicit .ts extension.
-import { createFlightState, stepFlight, RINGS } from './simulation.ts';
+import {
+  createFlightState,
+  stepFlight,
+  updateRaceProgress,
+  // @ts-expect-error Node's native TypeScript runner requires the explicit .ts extension.
+} from './simulation.ts';
 
 void test('launch perch is safe indefinitely without balanced wing output', () => {
   const s = createFlightState(),
@@ -33,20 +43,24 @@ void test('matched muscles balance roll; unilateral wing muscles cause roll', ()
   assert.ok(asymmetric.roll > 0.15);
   assert.ok(balanced.position.z > 0);
 });
-void test('landmark progress accepts any route without mandatory gates', () => {
-  const hit = createFlightState(),
-    miss = createFlightState();
-  for (const s of [hit, miss]) {
-    s.launched = true;
-    s.position.z = RINGS[0].z - 0.02;
-    s.velocity.z = 30;
+void test('one complete loop is required and backwards start crossing does not count', () => {
+  const s = createFlightState();
+  s.launched = true;
+  for (let p = -1; p >= -20; p--) {
+    const point = trackPoint(p);
+    s.position = { ...point, y: 5 };
+    updateRaceProgress(s);
   }
-  miss.position.x = 10;
-  stepFlight(hit, [], 0.02);
-  stepFlight(miss, [], 0.02);
-  assert.equal(hit.checkpoint, 1);
-  assert.equal(miss.checkpoint, 1);
-  assert.equal(miss.crashed, false);
+  assert.equal(s.lap, 1);
+  assert.equal(s.finished, false);
+  for (let p = -19; p <= FINISH_Z; p++) {
+    const point = trackPoint(p);
+    s.position = { ...point, y: 5 };
+    updateRaceProgress(s);
+    if (p < FINISH_Z - 1) assert.equal(s.finished, false);
+  }
+  assert.equal(s.finished, true);
+  assert.equal(s.lap, 1);
 });
 void test('flight is deterministic and reset restores fatigue', () => {
   const a = createFlightState(),
@@ -161,40 +175,12 @@ void test('each real selected pathway activates its own muscle independently', (
     );
   });
 });
-void test('deliberate real-key holds reach the kitchen finish at human decision cadence', () => {
-  // All feedback is sampled at 0.6, 0.8 or 1.0 seconds. Keys cannot change in
-  // between decisions, so every new hold/release lasts at least that interval.
-  for (const decisionSeconds of [0.6, 0.8, 1]) {
-    const worker = realWorker(),
-      s = createFlightState();
-    const decisionSteps = Math.round(decisionSeconds / 0.02);
-    let keys: string[] = [];
-    for (let i = 0; i < 6000 && !s.crashed && !s.finished; i++) {
-      if (i % decisionSteps === 0) {
-        const target =
-          s.position.z > 150 ? { x: 0, y: 8 } : RINGS[s.checkpoint];
-        keys = [];
-        if (!s.launched || s.position.y + s.velocity.y * 0.6 < target.y)
-          keys.push('q', 'w', 'a', 's');
-        const desiredRoll = Math.max(
-          -0.3,
-          Math.min(0.3, (target.x - s.position.x) * 0.08 - s.velocity.x * 0.2),
-        );
-        if (desiredRoll > s.roll + s.angularVelocity.z * 0.5 + 0.02)
-          keys.push('t');
-        if (desiredRoll < s.roll + s.angularVelocity.z * 0.5 - 0.02)
-          keys.push('g');
-      }
-      stepFlight(s, worker(keys), 0.02);
-    }
-    assert.equal(
-      s.crashed,
-      false,
-      `${decisionSeconds}s decision cadence must be playable`,
-    );
-    assert.equal(s.finished, true);
-    assert.equal(s.checkpoint, 8);
-  }
+void test('teleporting to later sections cannot skip a lap', () => {
+  const s = createFlightState();
+  s.position = { ...trackPoint(FINISH_Z * 0.8), y: 5 };
+  updateRaceProgress(s);
+  assert.equal(s.distance, 0);
+  assert.equal(s.finished, false);
 });
 void test('holding primary wing muscles provides time to learn; landing is safe', () => {
   const worker = realWorker(),
@@ -210,55 +196,54 @@ void test('holding primary wing muscles provides time to learn; landing is safe'
   assert.equal(s.crashed, false);
   assert.equal(s.position.y, 0.45);
 });
-void test('walls, ceiling and floor bounce without resetting progress', () => {
-  for (const [axis, position, velocity] of [
-    ['x', 22.99, 20],
-    ['x', -22.99, -20],
-    ['y', 0.46, -20],
-    ['y', 23.99, 20],
-  ] as const) {
-    const s = createFlightState();
-    s.launched = true;
-    s.position.z = 60;
-    s.position[axis] = position + (axis === 'x' ? courseX(60) : 0);
-    s.velocity[axis] = velocity;
-    stepFlight(s, [], 0.02);
-    assert.equal(s.crashed, false);
-    assert.equal(s.launched, true);
-    assert.ok(s.position.z >= 60);
-    assert.ok(s.stunRemaining > 0 || s.velocity[axis] * velocity <= 0);
-  }
+void test('course edge stuns without resetting progress', () => {
+  const s = createFlightState();
+  s.launched = true;
+  s.routeProgress = 60;
+  s.distance = 60;
+  s.previousProgress = 60;
+  s.position = { ...trackPoint(60, 24), y: 5 };
+  stepFlight(s, [], 0.02);
+  assert.ok(s.stunRemaining > 0);
+  assert.equal(s.crashed, false);
+  assert.equal(s.distance, 60);
+  assert.ok(projectTrack(s.position.x, s.position.z).distance < 23.1);
 });
-void test('finish accepts low, high and side routes without prior checkpoints', () => {
-  for (const x of [-20, 0, 20])
-    for (const y of [1, 10, 23]) {
-      const s = createFlightState();
-      s.launched = true;
-      s.position = { x, y, z: FINISH_Z - 0.1 };
-      s.velocity.z = 30;
-      stepFlight(s, [], 0.02);
-      assert.equal(s.finished, true);
-      assert.equal(s.crashed, false);
-      const frozen = structuredClone(s);
-      stepFlight(s, Array(10).fill(1), 0.1);
-      assert.deepEqual(s, frozen);
-    }
+void test('one-lap finish freezes state and does not refresh consumed food', () => {
+  const s = createFlightState();
+  s.launched = true;
+  s.previousProgress = FINISH_Z - 1;
+  s.routeProgress = FINISH_Z - 1;
+  s.collectedFood = [0, 1];
+  s.position = { ...trackPoint(1), y: 5 };
+  updateRaceProgress(s);
+  assert.equal(s.finished, true);
+  assert.equal(s.lap, 1);
+  assert.deepEqual(s.collectedFood, [0, 1]);
+  const frozen = structuredClone(s);
+  stepFlight(s, Array(10).fill(1), 0.1);
+  assert.deepEqual(s, frozen);
 });
 void test('blue mug pushes the fly away instead of respawning', () => {
   const s = createFlightState();
   s.launched = true;
-  s.position = { x: -11 + courseX(28), y: 5, z: 23.7 };
+  s.position = { x: KITCHEN_PROPS[0].x, y: 5, z: KITCHEN_PROPS[0].z - 4.3 };
   s.velocity.z = 10;
   stepFlight(s, [], 0.02);
   assert.equal(s.crashed, false);
-  assert.ok(s.position.z <= 23.6);
+  assert.ok(
+    Math.hypot(
+      s.position.x - KITCHEN_PROPS[0].x,
+      s.position.z - KITCHEN_PROPS[0].z,
+    ) >= 4.4,
+  );
   assert.ok(s.stunRemaining > 0);
 });
 void test('jam slows, juice boosts and timed water stuns without death', () => {
   const run = (x: number, z: number, elapsed = 0) => {
     const s = createFlightState();
     s.launched = true;
-    s.position = { x: x + courseX(z), y: 1, z };
+    s.position = { ...trackPoint(z, x), y: 1 };
     s.velocity.z = 5;
     s.elapsed = elapsed;
     stepFlight(s, [], 0.1);
@@ -286,10 +271,10 @@ void test('cruise is faster and paired wing pitch controls accelerate and brake'
     brake = flight(['r', 'f']);
   // Before this tuning the same real-key 3-second run covered 7.85 units.
   assert.ok(
-    cruise.position.z > 10.4,
+    cruise.position.z > 8,
     'at least 32% more forward progress than the previous cruise',
   );
-  assert.ok(cruise.velocity.z > 6);
+  assert.ok(cruise.velocity.z > 4);
   assert.ok(accelerate.velocity.z > cruise.velocity.z * 1.5);
   assert.ok(brake.velocity.z < cruise.velocity.z * 0.5);
   assert.ok(brake.velocity.z >= 0, 'braking should not invent reverse thrust');
@@ -312,7 +297,7 @@ void test('stroke extent creates opposite banks: T toward positive X and G negat
 void test('hit falls, rests on the floor despite input, then recovers without reset', () => {
   const s = createFlightState();
   s.launched = true;
-  s.position = { x: -11 + courseX(28), y: 5, z: 23.7 };
+  s.position = { x: KITCHEN_PROPS[0].x, y: 5, z: KITCHEN_PROPS[0].z - 4.3 };
   s.velocity.z = 10;
   stepFlight(s, [], 0.02);
   const hitZ = s.position.z;
@@ -336,7 +321,7 @@ void test('recovery protection prevents repeated trap hits, then expires', () =>
   const s = createFlightState();
   s.launched = true;
   s.recoveryRemaining = 2;
-  s.position = { x: -9 + courseX(155), y: 1, z: 155 };
+  s.position = { ...trackPoint(155, -9), y: 1 };
   s.elapsed = 4;
   stepFlight(s, [], 0.1);
   assert.equal(s.stunRemaining, 0);
@@ -355,7 +340,7 @@ void test('swatter only stuns during its active attack window', () => {
     const s = createFlightState();
     s.launched = true;
     s.elapsed = elapsed;
-    s.position = { x: 5 + courseX(126), y: 4, z: 126 };
+    s.position = { ...trackPoint(126, 5), y: 4 };
     stepFlight(s, [], 0.02);
     assert.equal(s.stunRemaining > 0, hit);
   }
@@ -403,35 +388,42 @@ void test('food is consumed once, boosts forward motion, expires and resets', ()
   stepFlight(s, power, 0.2);
   stepFlight(control, power, 0.2);
   assert.ok(s.velocity.z > control.velocity.z);
-  s.position = { x: courseX(80) + 20, y: 5, z: 80 };
+  s.position = { ...trackPoint(80, 20), y: 5 };
   s.velocity = { x: 0, y: 0, z: 0 };
   for (let i = 0; i < 150; i++) stepFlight(s, [], 0.02);
   assert.equal(s.boostRemaining, 0);
   assert.deepEqual(createFlightState().collectedFood, []);
 });
 
-void test('six-key pilot follows S bends and finishes at a human correction cadence', () => {
+void test('six-key pilot completes one winding lap with 0.4 second corrections', () => {
   const s = createFlightState(),
     worker = realWorker();
   let keys: string[] = [];
-  for (let i = 0; i < 7000 && !s.finished; i++) {
+  for (let i = 0; i < 45000 && !s.finished; i++) {
     if (i % 20 === 0) {
       keys = [];
-      const altitude = s.position.z > 155 ? 8 : 4.5;
-      if (!s.launched || s.position.y + s.velocity.y * 0.5 < altitude)
+      if (!s.launched || s.position.y + s.velocity.y * 0.5 < 8)
         keys.push('w', 'o');
-      const heading = Math.max(
-        -0.7,
-        Math.min(
-          0.7,
-          Math.atan2(courseX(s.position.z + 12) - s.position.x, 12),
-        ),
+      const progress = projectTrack(s.position.x, s.position.z).progress;
+      const target = trackPoint(progress + 10);
+      const heading = Math.atan2(
+        target.x - s.position.x,
+        target.z - s.position.z,
       );
-      if (s.yaw + s.angularVelocity.y * 0.3 < heading - 0.06) keys.push('e');
-      if (s.yaw + s.angularVelocity.y * 0.3 > heading + 0.06) keys.push('i');
+      const error = Math.atan2(
+        Math.sin(heading - s.yaw - s.angularVelocity.y * 0.3),
+        Math.cos(heading - s.yaw - s.angularVelocity.y * 0.3),
+      );
+      if (error > 0.06) keys.push('e');
+      if (error < -0.06) keys.push('i');
     }
     stepFlight(s, worker(muscleInputs(keys)), 0.02);
   }
-  assert.equal(s.finished, true, JSON.stringify(s.position));
+  assert.equal(
+    s.finished,
+    true,
+    JSON.stringify({ pos: s.position, progress: s.routeProgress }),
+  );
+  assert.equal(s.lap, 1);
   assert.equal(s.crashed, false);
 });

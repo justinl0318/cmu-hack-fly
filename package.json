@@ -10,7 +10,8 @@
     "build": "vinext build",
     "start": "wrangler dev --config dist/server/wrangler.json",
     "lint": "oxlint",
-    "format": "oxfmt"
+    "format": "oxfmt",
+    "test": "node --experimental-strip-types --test lib/simulation.test.ts lib/replay.test.ts lib/battle.test.ts lib/profile.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",
@@ -20,8 +21,10 @@
     "cmdk": "1.1.1",
     "date-fns": "4.1.0",
     "embla-carousel-react": "8.5.2",
+    "gifenc": "^1.0.3",
     "input-otp": "1.4.2",
     "lucide-react": "1.31.0",
+    "peerjs": "^1.5.5",
     "react": "19.2.6",
     "react-day-picker": "9.8.1",
     "react-dom": "19.2.6",

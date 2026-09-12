@@ -1,19 +1,37 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import type { Racer } from '@/lib/battle';
+import { trackPoint, FINISH_Z } from '@/lib/kitchen';
 import { type FlightState } from '@/lib/simulation';
 
+import { createFly, disposeFly } from '@/lib/fly-model';
+import { DEFAULT_LOOK, type FlyLook } from '@/lib/profile';
 import { buildKitchen } from '@/lib/kitchen-scene';
 
 export default function RaceView({
   state,
   replay = false,
+  opponents = [],
+  attackFlash = 0,
+  look = DEFAULT_LOOK,
 }: {
   state: FlightState;
   replay?: boolean;
+  opponents?: Racer[];
+  attackFlash?: number;
+  look?: FlyLook;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const latest = useRef(state);
+  const rivals = useRef(opponents);
+  useEffect(() => {
+    rivals.current = opponents;
+  }, [opponents]);
+  const attack = useRef(attackFlash);
+  useEffect(() => {
+    attack.current = attackFlash;
+  }, [attackFlash]);
   const snapCamera = useRef(true);
   useEffect(() => {
     snapCamera.current = true;
@@ -45,93 +63,12 @@ export default function RaceView({
     light.position.set(-25, 45, -15);
     scene.add(light);
     const kitchen = buildKitchen(scene);
-    const fly = new THREE.Group();
+    const { fly, wings } = createFly({
+      color: look.color,
+      hat: look.hat,
+      shoes: look.shoes,
+    });
     scene.add(fly);
-    fly.scale.setScalar(1.35);
-    const bodyMat = new THREE.MeshStandardMaterial({
-      color: '#97745d',
-      roughness: 0.45,
-      metalness: 0.05,
-    });
-    const darkMat = new THREE.MeshStandardMaterial({
-      color: '#60483e',
-      roughness: 0.45,
-      metalness: 0.05,
-    });
-    const ellipsoid = (
-      scale: [number, number, number],
-      position: [number, number, number],
-      material: THREE.Material,
-    ) => {
-      const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(1, 24, 16),
-        material,
-      );
-      mesh.scale.set(...scale);
-      mesh.position.set(...position);
-      fly.add(mesh);
-      return mesh;
-    };
-    ellipsoid([0.24, 0.23, 0.34], [0, 0, 0], bodyMat);
-    ellipsoid([0.19, 0.18, 0.38], [0, -0.04, -0.46], darkMat);
-    ellipsoid([0.29, 0.25, 0.24], [0, 0.06, 0.35], bodyMat);
-    const eyeMat = new THREE.MeshStandardMaterial({
-      color: '#ee493f',
-      metalness: 0.05,
-      roughness: 0.25,
-    });
-    ellipsoid([0.17, 0.21, 0.17], [-0.21, 0.12, 0.46], eyeMat);
-    ellipsoid([0.17, 0.21, 0.17], [0.21, 0.12, 0.46], eyeMat);
-    const glintMat = new THREE.MeshBasicMaterial({ color: '#fff9eb' });
-    for (const sign of [-1, 1]) {
-      ellipsoid([0.05, 0.065, 0.025], [sign * 0.25, 0.21, 0.6], glintMat);
-      const antenna = new THREE.Mesh(
-        new THREE.CapsuleGeometry(0.018, 0.17, 4, 8),
-        darkMat,
-      );
-      antenna.position.set(sign * 0.13, 0.32, 0.4);
-      antenna.rotation.z = -sign * 0.35;
-      fly.add(antenna);
-      ellipsoid([0.035, 0.035, 0.035], [sign * 0.16, 0.42, 0.4], bodyMat);
-    }
-    const wingMat = new THREE.MeshPhysicalMaterial({
-      color: '#fff1d9',
-      transparent: true,
-      opacity: 0.48,
-      side: THREE.DoubleSide,
-      roughness: 0.25,
-      metalness: 0.05,
-    });
-    const wings: THREE.Group[] = [];
-    for (const sign of [-1, 1]) {
-      const pivot = new THREE.Group();
-      pivot.position.set(sign * 0.17, 0.12, 0.02);
-      fly.add(pivot);
-      const wing = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 12), wingMat);
-      wing.scale.set(0.73, 0.012, 0.27);
-      wing.position.set(sign * 0.65, 0, -0.12);
-      wing.rotation.y = sign * 0.23;
-      pivot.add(wing);
-      wings.push(pivot);
-      for (let j = 0; j < 3; j++) {
-        const path = [
-          new THREE.Vector3(sign * 0.13, -0.1, 0.2 - j * 0.22),
-          new THREE.Vector3(sign * 0.36, -0.35, 0.15 - j * 0.28),
-          new THREE.Vector3(sign * 0.5, -0.43, 0.28 - j * 0.35),
-        ];
-        const leg = new THREE.Mesh(
-          new THREE.TubeGeometry(
-            new THREE.CatmullRomCurve3(path),
-            8,
-            0.025,
-            6,
-            false,
-          ),
-          darkMat,
-        );
-        fly.add(leg);
-      }
-    }
     const shadow = new THREE.Mesh(
       new THREE.CircleGeometry(0.6, 32),
       new THREE.MeshBasicMaterial({
@@ -158,6 +95,34 @@ export default function RaceView({
       );
       dizzy.add(star);
     }
+    const remote = new Map<string, THREE.Group>();
+    const pulses = new Map<string, THREE.Mesh>();
+    const showPulse = (
+      id: string,
+      position: { x: number; y: number; z: number },
+      yaw: number,
+      flash: number,
+    ) => {
+      let pulse = pulses.get(id);
+      if (!pulse) {
+        pulse = new THREE.Mesh(
+          new THREE.RingGeometry(0.5, 1, 32, 1, -0.85, 1.7),
+          new THREE.MeshBasicMaterial({
+            color: '#fff8a0',
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.6,
+            depthWrite: false,
+          }),
+        );
+        scene.add(pulse);
+        pulses.set(id, pulse);
+      }
+      pulse.visible = flash > 0;
+      pulse.position.set(position.x, position.y, position.z);
+      pulse.rotation.set(-Math.PI / 2, 0, Math.PI / 2 - yaw);
+      pulse.scale.setScalar(2 + (1 - flash / 0.3) * 6);
+    };
     const target = new THREE.Vector3(),
       cameraTarget = new THREE.Vector3();
     let frame = 0;
@@ -189,9 +154,58 @@ export default function RaceView({
         wings[i].rotation.x =
           ((m[offset + 2] ?? 0) - (m[offset + 3] ?? 0)) * 0.5;
       }
+      showPulse('self', s.position, s.yaw, attack.current);
+      const activeIds = new Set(rivals.current.map((p) => p.id));
+      for (const [id, model] of remote)
+        if (!activeIds.has(id)) {
+          model.visible = false;
+          const pulse = pulses.get(id);
+          if (pulse) pulse.visible = false;
+        }
+      for (const p of rivals.current) {
+        let model = remote.get(p.id);
+        if (!model) {
+          model = createFly(p.profile.look).fly;
+          remote.set(p.id, model);
+          scene.add(model);
+          model.position.set(
+            p.state.position.x,
+            p.state.position.y,
+            p.state.position.z,
+          );
+        }
+        model.visible = true;
+        model.position.lerp(
+          new THREE.Vector3(
+            p.state.position.x,
+            p.state.position.y,
+            p.state.position.z,
+          ),
+          1 - Math.exp(-dt * 18),
+        );
+        model.rotation.set(
+          p.state.pitch,
+          p.state.yaw,
+          p.state.stunRemaining > 0 ? Math.PI / 2 : -p.state.roll,
+          'YXZ',
+        );
+        const pivots = model.children.filter((c) => c.name.startsWith('wing-'));
+        pivots.forEach((pivot, i) => {
+          pivot.rotation.z =
+            (i === 0 ? 1 : -1) *
+            Math.sin(time * 0.08) *
+            0.45 *
+            (p.state.stunRemaining > 0 ? 0 : 1);
+        });
+        showPulse(p.id, p.state.position, p.state.yaw, p.attackFlash);
+      }
       shadow.position.set(s.position.x, 0.015, s.position.z);
       shadow.scale.setScalar(1 + s.position.y * 0.08);
-      cameraTarget.set(s.position.x, s.position.y + 3.1, s.position.z - 10.5);
+      cameraTarget.set(
+        s.position.x - Math.sin(s.yaw) * 10.5,
+        s.position.y + 3.1,
+        s.position.z - Math.cos(s.yaw) * 10.5,
+      );
       if (snapCamera.current || Math.abs(s.elapsed - previousElapsed) > 1) {
         camera.position.copy(cameraTarget);
         snapCamera.current = false;
@@ -200,7 +214,7 @@ export default function RaceView({
       target.set(
         s.position.x + Math.sin(s.yaw) * 5,
         s.position.y + 0.1,
-        s.position.z + 8,
+        s.position.z + Math.cos(s.yaw) * 8,
       );
       camera.lookAt(target);
       kitchen.update(s.elapsed, s.collectedFood);
@@ -227,11 +241,12 @@ export default function RaceView({
           );
         }
       });
+      for (const model of remote.values()) disposeFly(model);
       kitchen.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, []);
+  }, [look.color, look.hat, look.shoes]);
   return (
     <div
       ref={host}
@@ -243,6 +258,51 @@ export default function RaceView({
       }}
     >
       {error && <p style={{ padding: 24, color: '#d6ff6b' }}>{error}</p>}
+      <svg
+        aria-label="Circuit overview: start and finish share one line"
+        viewBox="-35 -115 245 230"
+        style={{
+          position: 'absolute',
+          right: 12,
+          bottom: 12,
+          width: 130,
+          height: 125,
+          background: '#18251ecc',
+          borderRadius: 12,
+          pointerEvents: 'none',
+        }}
+      >
+        <path
+          d={Array.from({ length: 129 }, (_, i) => {
+            const p = trackPoint((i / 128) * FINISH_Z);
+            return `${i ? 'L' : 'M'} ${p.x} ${-p.z}`;
+          }).join(' ')}
+          fill="none"
+          stroke="#add6b8"
+          strokeWidth={8}
+        />
+        <path d="M -10 0 L 10 0" stroke="white" strokeWidth={5} />
+        {opponents.map((p) => (
+          <circle
+            key={p.id}
+            cx={p.state.position.x}
+            cy={-p.state.position.z}
+            r={5}
+            fill={p.color}
+          />
+        ))}
+        <circle
+          cx={state.position.x}
+          cy={-state.position.z}
+          r={6}
+          fill="#fff"
+          stroke="#334235"
+          strokeWidth={2}
+        />
+        <text x={80} y={108} fill="white" textAnchor="middle" fontSize={13}>
+          LAP {state.lap} / 1
+        </text>
+      </svg>
     </div>
   );
 }
