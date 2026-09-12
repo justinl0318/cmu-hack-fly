@@ -21,12 +21,18 @@ Instead of meeting through a cold message, players meet inside a shared race. Ev
 A browser-based QWOP-inspired fruit fly flight experiment. Six flight keys mapped to ten neural channels stimulate real MaleCNS pathways, and the resulting modeled motor activity drives arcade wing flight and kitchen racing.
 
 ## Demo video
+- Short demo video:
+
 ![Whole Demo Video](whole-demo-edited_compressed-ezgif.com-video-to-gif-converter.gif)
 
-- [whole demo video](https://drive.google.com/file/d/1LcSomeL8kvsorXWNa4tXkI5IL2D34jd3/view)
-- [turn left demo](https://drive.google.com/file/d/1VBliqDG5gfAOw-p299sw4lrS3FmLC_KA/view)
-- [turn right demo](https://drive.google.com/file/d/1jEIVXqec-JOWtbRCFTd9c5SD4zTQFyl3/view)
+- Turn left demo
 
+![turn left demo](turnleft-ezgif.com-video-to-gif-converter.gif)
+- turn right demo
+  
+![turn right demo](turnright-ezgif.com-video-to-gif-converter.gif)
+
+- [whole demo video](https://drive.google.com/file/d/1LcSomeL8kvsorXWNa4tXkI5IL2D34jd3/view)
 ## Slides
 
 [![View our slides](slides-preview.jpg)](https://canva.link/r8njx12wig71yi9)
