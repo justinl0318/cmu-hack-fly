@@ -13,6 +13,7 @@ import {
 import BrainView, { type Circuit } from '@/components/BrainView';
 import Link from 'next/link';
 import RaceView from '@/components/RaceView';
+import FlightTutorial, { LESSONS } from '@/components/FlightTutorial';
 import {
   CHANNELS,
   createFlightState,
@@ -37,13 +38,15 @@ const labels = [
 ];
 export default function Home() {
   const [help, setHelp] = useState(false);
+  const [lesson, setLesson] = useState(0);
+  const [guide, setGuide] = useState(false);
   const [sources, setSources] = useState(false);
   const [circuit, setCircuit] = useState<Circuit | null>(null);
   const [error, setError] = useState('');
   const [ready, setReady] = useState(false);
   const [running, setRunning] = useState(false);
   const [started, setStarted] = useState(false);
-  const [slow, setSlow] = useState(true);
+  const [slow, setSlow] = useState(false);
   const [replay, setReplay] = useState(false);
   const [pressed, setPressed] = useState<string[]>([]);
   const [spikes, setSpikes] = useState<string[]>([]);
@@ -53,7 +56,7 @@ export default function Home() {
   const flightRef = useRef(createFlightState());
   const runRef = useRef(false);
   const replayRef = useRef(false);
-  const slowRef = useRef(true);
+  const slowRef = useRef(false);
   const activationRef = useRef<number[]>(Array(10).fill(0));
   const held = useRef(new Set<string>());
   const history = useRef<
@@ -335,7 +338,7 @@ export default function Home() {
             setHelp(true);
           }}
         >
-          <CircleHelp size={17} /> How to fly
+          <CircleHelp size={17} /> Flight school
         </button>
       </header>
       <section className="title-row">
@@ -349,6 +352,14 @@ export default function Home() {
           30 REAL NEURONS <ArrowUpRight size={14} />
         </span>
       </section>
+      {guide && (
+        <FlightTutorial
+          step={lesson}
+          onStep={setLesson}
+          flight={flight}
+          onClose={() => setGuide(false)}
+        />
+      )}
       {error && (
         <div className="error-banner" role="alert">
           {error} <button onClick={() => location.reload()}>Retry</button>
@@ -429,6 +440,14 @@ export default function Home() {
                         ? 'Resume flight'
                         : 'Prepare for takeoff'}
                 </button>
+                {!started && (
+                  <button
+                    className="quiet-button"
+                    onClick={() => setHelp(true)}
+                  >
+                    <CircleHelp size={16} /> Learn the controls
+                  </button>
+                )}
               </div>
             )}
             {running && !flight.launched && !replay && (
@@ -575,7 +594,10 @@ export default function Home() {
             <button
               className={
                 'muscle-key' +
-                (pressed.includes(key.toLowerCase()) ? ' pressed' : '')
+                (pressed.includes(key.toLowerCase()) ? ' pressed' : '') +
+                (guide && LESSONS[lesson].keys.includes(key)
+                  ? ' lesson-focus'
+                  : '')
               }
               key={key}
               aria-label={`${i < 5 ? 'Left' : 'Right'} ${labels[i % 5]} · ${key}`}
@@ -696,25 +718,26 @@ export default function Home() {
       </Dialog>
       <Dialog open={help} onOpenChange={setHelp}>
         <DialogContent className="help-dialog">
-          <DialogTitle>Ten keys. One fruit fly.</DialogTitle>
+          <DialogTitle>Flight school</DialogTitle>
           <DialogDescription>
-            Stimulate individual muscle channels and coordinate both wings to
-            fly through the gates. The game uses real MaleCNS geometry with
-            artificial stimulation and muscle mappings.
+            Five short lessons, from your first wingbeat to a complete race.
+            Flight pauses while you read. You can pin a lesson beside your
+            flight to practice.
           </DialogDescription>
+          <FlightTutorial step={lesson} onStep={setLesson} />
+          <button
+            className="primary-button"
+            onClick={() => {
+              setGuide(true);
+              setHelp(false);
+            }}
+          >
+            Pin lesson & practice
+          </button>
           <p>
-            Q–T control the left wing; A–G control the right. Downstroke and
-            upstroke produce power. Pronation and supination change wing pitch.
-            Stroke extent changes wing amplitude.
-          </p>
-          <p>
-            You stay safely at the start until Q + W and A + S are held
-            together. Keep holding for lift, then release for a gentle descent.
-            Rapid tapping is unnecessary. Training pace is on by default to give
-            you twice as long to react. Experiment with T and G separately to
-            change each wing’s stroke extent. Power pairs support a full
-            wingbeat. Opposing wing-pitch commands cancel while still costing
-            effort.
+            Full speed is the default. Turn on Training pace for optional
+            half-speed practice. Space pauses; the circular-arrow button resets
+            your flight.
           </p>
         </DialogContent>
       </Dialog>

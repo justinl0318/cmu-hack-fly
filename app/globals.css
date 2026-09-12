@@ -717,3 +717,111 @@ h1 span {
   background: var(--primary);
   border-color: var(--primary);
 }
+.flight-tutorial h3 {
+  font-size: 23px;
+  margin: 8px 0 12px;
+  font-weight: 500;
+  letter-spacing: -0.5px;
+}
+.flight-tutorial p {
+  font-size: 15px;
+  line-height: 1.65;
+  margin: 12px 0;
+  color: #d7e1db;
+}
+.flight-tutorial .lesson-explanation {
+  color: #9cb0b0;
+}
+.flight-tutorial .lesson-cue {
+  color: #c5dcaa;
+  font-size: 14px;
+}
+.lesson-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.lesson-keycaps {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.lesson-keycaps kbd {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #789754;
+  border-radius: 4px;
+  color: var(--primary);
+  background: #263024;
+  font: 18px monospace;
+}
+.lesson-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 18px;
+}
+.lesson-navigation button:disabled {
+  cursor: default;
+}
+.lesson-navigation > span {
+  display: flex;
+  gap: 5px;
+}
+.lesson-navigation i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #52645e;
+}
+.lesson-navigation i.current {
+  background: var(--primary);
+}
+.live-guide {
+  border: 1px solid #496139;
+  border-radius: 8px;
+  background: #172219;
+  padding: 18px 22px;
+  margin-bottom: 16px;
+}
+.live-guide h3 {
+  font-size: 21px;
+}
+.lesson-live {
+  color: #b8ccc3;
+  font: 13px monospace;
+  padding-top: 6px;
+}
+.muscle-key.lesson-focus {
+  border-color: #95b659;
+  box-shadow: inset 0 2px #95b659;
+}
+.race-overlay > .quiet-button {
+  margin-top: 12px;
+}
+@media (min-width: 1000px) {
+  .live-guide {
+    display: grid;
+    grid-template-columns: 230px 1fr;
+    gap: 0 25px;
+  }
+  .live-guide .lesson-heading,
+  .live-guide .lesson-navigation {
+    grid-column: 1/-1;
+  }
+  .live-guide .lesson-keycaps {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .live-guide > p {
+    grid-column: 2;
+    margin: 4px 0;
+  }
+  .live-guide .lesson-live {
+    grid-column: 1/-1;
+    margin-top: 8px;
+  }
+}

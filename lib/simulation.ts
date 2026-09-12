@@ -59,14 +59,14 @@ export function stepFlight(s: FlightState, activations: number[], delta: number)
     const lift = (left + right) * 3.9;
     const twist = (m[2] + m[7] - m[3] - m[8]) * .5;
     const av = s.angularVelocity;
-    av.z += ((left - right) * 2.5 - s.roll * .75 - av.z * 2.8) * dt;
+    av.z += ((left - right) * 3.2 - s.roll * .75 - av.z * 2.8) * dt;
     av.x += (twist * .95 - s.pitch * 1.5 - av.x * 2.8) * dt;
     av.y += (((m[2] - m[3]) - (m[7] - m[8])) * .8 - av.y * 2.5) * dt;
     s.roll = clamp(s.roll + av.z * dt, -1.45, 1.45);
     s.pitch = clamp(s.pitch + av.x * dt, -.8, .8);
     s.yaw = clamp(s.yaw + av.y * dt, -1.2, 1.2);
-    const thrust = (left + right) * (1.3 + Math.max(-.65, twist) * 3.5);
-    s.velocity.x += (Math.sin(s.roll) * lift * 1.1 + Math.sin(s.yaw) * thrust - s.velocity.x * .9) * dt;
+    const thrust = (left + right) * Math.max(0, 1.75 + Math.max(-.65, twist) * 3.5);
+    s.velocity.x += (Math.sin(s.roll) * lift * 1.7 + Math.sin(s.yaw) * thrust - s.velocity.x * .9) * dt;
     s.velocity.y += (Math.cos(s.roll) * Math.cos(s.pitch) * lift - 4.8 - s.velocity.y * 2.8) * dt;
     s.velocity.z += (Math.cos(s.yaw) * thrust - s.velocity.z * .40) * dt;
     for (const k of ['x', 'y', 'z'] as const) s.position[k] += s.velocity[k] * dt;

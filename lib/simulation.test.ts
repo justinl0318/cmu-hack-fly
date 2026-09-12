@@ -134,3 +134,32 @@ void test('holding every real control does not win', () => {
   assert.equal(s.finished, false);
   assert.equal(s.crashed, true);
 });
+
+void test('cruise is faster and paired wing pitch controls accelerate and brake', () => {
+  function flight(extraKeys: string[]) {
+    const s = createFlightState(), worker = realWorker();
+    for (let i = 0; i < 150; i++) {
+      const keys = ['q', 'w', 'a', 's', ...(i < 50 ? [] : extraKeys)];
+      stepFlight(s, worker(keys), .02);
+    }
+    return s;
+  }
+  const cruise = flight([]), accelerate = flight(['e', 'd']), brake = flight(['r', 'f']);
+  // Before this tuning the same real-key 3-second run covered 7.85 units.
+  assert.ok(cruise.position.z > 10.4, 'at least 32% more forward progress than the previous cruise');
+  assert.ok(cruise.velocity.z > 6);
+  assert.ok(accelerate.velocity.z > cruise.velocity.z * 1.5);
+  assert.ok(brake.velocity.z < cruise.velocity.z * .5);
+  assert.ok(brake.velocity.z >= 0, 'braking should not invent reverse thrust');
+});
+void test('stroke extent creates opposite banks: T toward positive X and G negative X', () => {
+  function bank(key: string) {
+    const s = createFlightState(), worker = realWorker();
+    for (let i = 0; i < 100; i++) stepFlight(s, worker(['q', 'w', 'a', 's', key]), .02);
+    return s;
+  }
+  const t = bank('t'), g = bank('g');
+  assert.ok(t.position.x > .5 && t.roll > .1);
+  assert.ok(g.position.x < -.5 && g.roll < -.1);
+  assert.ok(Math.abs(t.position.x + g.position.x) < 1e-8);
+});

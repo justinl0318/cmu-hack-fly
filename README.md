@@ -11,7 +11,16 @@ npm run dev
 
 Open http://localhost:3000. Use Q/W/E/R/T for left-wing muscle channels and A/S/D/F/G for right-wing channels. Click Prepare for takeoff: the fly waits safely while you place your hands. Hold Q+W and A+S until all four output channels respond, which starts takeoff. Continue holding for lift; release to descend. Use T/G asymmetrically to bank and E/D or R/F for wing pitch. Space pauses. The on-screen keys support pointer/touch holds. Some keyboards limit simultaneous key presses; the four readiness indicators show which launch channels are responding.
 
-Replay shows the latest ~12 seconds of captured flight/activity at one-third speed. Training pace defaults to half-speed biomechanics while keeping neural activity real-time. Turn it off for full speed. Blur and hidden tabs pause the game. Once launched, releasing all muscles eventually causes a crash; the preparation support is no longer active.
+Replay shows the latest ~12 seconds of captured flight/activity at one-third speed. Full-speed flight is the default, with faster cruise thrust. Optional Training pace slows biomechanics to half speed while keeping neural activity real-time. Blur and hidden tabs pause the game. Once launched, releasing all muscles eventually causes a crash; the preparation support is no longer active.
+
+## Flight school
+
+Open Flight school for five lessons: takeoff, altitude, banking, wing pitch, and a complete race. Previous/Next navigate lessons. Pin lesson & practice keeps instructions and live flight readings visible, highlights relevant muscle keys, and preserves the current flight; resume or prepare when ready.
+
+- Hold Q+W+A+S to launch and build lift; briefly release to descend.
+- While powering the wings, add T to bank toward screen-left or G toward screen-right in the chase view. Release early and counter with the other wing to limit drift.
+- Add E+D for more thrust, R+F for braking. Keep managing the four lift muscles. Braking reduces thrust without producing reverse thrust.
+- Start with the first two centered gates, then coordinate wing extent for the offset gates.
 
 ## Data and model
 
