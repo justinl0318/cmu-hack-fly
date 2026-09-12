@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import shellManifest from '@/public/data/brain-shells.json';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const COLORS = [
@@ -51,6 +52,7 @@ export default function BrainView(props: Props) {
   }, [props]);
   const [error, setError] = useState('');
   const [selected, setSelected] = useState('');
+  const [shellError, setShellError] = useState('');
   useEffect(() => {
     if (!container.current || !props.circuit) return;
     const host = container.current;
@@ -156,6 +158,14 @@ export default function BrainView(props: Props) {
         samples: travel,
       });
     }
+    for (const shell of shellManifest.shells) {
+      bounds.expandByPoint(
+        new THREE.Vector3(...(shell.min as [number, number, number])),
+      );
+      bounds.expandByPoint(
+        new THREE.Vector3(...(shell.max as [number, number, number])),
+      );
+    }
     const center = bounds.getCenter(new THREE.Vector3()),
       size = bounds.getSize(new THREE.Vector3());
     const scale = 2.8 / Math.max(size.x, size.y, size.z, 1);
@@ -213,7 +223,73 @@ export default function BrainView(props: Props) {
       depthWrite: false,
     });
     const pulses = new THREE.Points(pulseGeometry, pulseMaterial);
+    pulses.frustumCulled = false;
     root.add(pulses);
+    const shellPulses = Array.from(
+      { length: 30 },
+      () => new THREE.Vector4(100, 100, 100, 0),
+    );
+    const shellMaterial = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      uniforms: { signals: { value: shellPulses } },
+      vertexShader: `varying vec3 p; varying vec3 n; varying vec3 eye;
+        void main() { p=position; n=normalize(normalMatrix*normal); vec4 v=modelViewMatrix*vec4(position,1.); eye=normalize(-v.xyz); gl_Position=projectionMatrix*v; }`,
+      fragmentShader: `uniform vec4 signals[30]; varying vec3 p; varying vec3 n; varying vec3 eye;
+        void main() {
+          float glow=0.;
+          for(int i=0;i<30;i++) { float d=distance(p,signals[i].xyz);
+            glow+=signals[i].w*exp(-d*d/0.012)*(.65+.35*cos(d*80.-signals[i].w*8.)); }
+          glow=clamp(glow,0.,1.);
+          float rim=pow(1.-abs(dot(normalize(n),normalize(eye))),2.);
+          vec3 color=mix(vec3(.22,.53,.62),vec3(.63,1.,.61),glow);
+          gl_FragColor=vec4(color,.065+rim*.25+glow*.6);
+        }`,
+    });
+    const abort = new AbortController();
+    let disposed = false;
+    Promise.all(
+      shellManifest.shells.map(async (shell) => {
+        const response = await fetch('/data/' + shell.file, {
+          signal: abort.signal,
+        });
+        if (!response.ok) throw new Error('Anatomical shell could not load.');
+        const data = await response.arrayBuffer();
+        if (disposed) return;
+        const header = new DataView(data),
+          count = header.getUint32(0, true),
+          indexCount = header.getUint32(4, true);
+        if (data.byteLength !== 8 + count * 12 + indexCount * 4)
+          throw new Error('Invalid anatomical mesh.');
+        const source = new Float32Array(data, 8, count * 3),
+          points = new Float32Array(count * 3);
+        for (let i = 0; i < count; i++)
+          points.set(
+            normalize(
+              new THREE.Vector3(
+                source[i * 3],
+                source[i * 3 + 1],
+                source[i * 3 + 2],
+              ),
+            ).toArray(),
+            i * 3,
+          );
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(points, 3));
+        geometry.setIndex(
+          new THREE.BufferAttribute(
+            new Uint32Array(data, 8 + count * 12, indexCount),
+            1,
+          ),
+        );
+        geometry.computeVertexNormals();
+        root.add(new THREE.Mesh(geometry, shellMaterial));
+      }),
+    ).catch(() => {
+      if (!disposed)
+        setShellError('Shell unavailable · neuron view remains active');
+    });
     const raycaster = new THREE.Raycaster();
     raycaster.params.Line = { threshold: 0.018 };
     const pointer = new THREE.Vector2();
@@ -253,7 +329,7 @@ export default function BrainView(props: Props) {
       for (let i = 0; i < views.length; i++) {
         const v = views[i];
         const age = (time - v.fired) / (current.replay ? 1800 : 700);
-        v.material.opacity = 0.13 + Math.max(0, 1 - age) * 0.85;
+        v.material.opacity = 0.045 + Math.max(0, 1 - age) * 0.65;
         const progress = age * Math.max(v.samples.length - 1, 0);
         const index = Math.max(
           0,
@@ -265,6 +341,12 @@ export default function BrainView(props: Props) {
                 .clone()
                 .lerp(v.samples[index + 1], progress - index)
             : null;
+        shellPulses[i]?.set(
+          p?.x ?? 100,
+          p?.y ?? 100,
+          p?.z ?? 100,
+          p ? Math.max(0, 1 - age) : 0,
+        );
         pulsePositions[i * 3] = p?.x ?? 100;
         pulsePositions[i * 3 + 1] = p?.y ?? 100;
         pulsePositions[i * 3 + 2] = p?.z ?? 100;
@@ -275,17 +357,24 @@ export default function BrainView(props: Props) {
     };
     frame = requestAnimationFrame(animate);
     return () => {
+      disposed = true;
+      abort.abort();
       cancelAnimationFrame(frame);
       observer.disconnect();
       controls.dispose();
       renderer.domElement.removeEventListener('pointerup', pick);
       scene.traverse((o) => {
-        if (o instanceof THREE.LineSegments || o instanceof THREE.Points) {
+        if (
+          o instanceof THREE.LineSegments ||
+          o instanceof THREE.Points ||
+          o instanceof THREE.Mesh
+        ) {
           o.geometry.dispose();
           const mats = Array.isArray(o.material) ? o.material : [o.material];
           mats.forEach((m) => m.dispose());
         }
       });
+      shellMaterial.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     };
@@ -320,7 +409,9 @@ export default function BrainView(props: Props) {
         REAL MALECNS SKELETONS · {props.circuit?.neurons?.length ?? 0} NEURON
         SUBSET
         <br />
-        PULSE TRAVEL IS ILLUSTRATIVE
+        {shellError || 'MALECNS BRAIN + VNC SHELL · LOCAL SPIKE GLOW'}
+        <br />
+        SURFACE GLOW IS AN ILLUSTRATIVE PROJECTION
       </div>
       <div
         style={{

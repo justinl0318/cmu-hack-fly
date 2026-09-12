@@ -29,3 +29,14 @@ The connectome supplies anatomical geometry and synapse counts, not complete exe
 ## Runtime selection
 
 The shipped worker simulates the 20 measured edges along the ten selected two-hop paths. Other measured edges among the selected neurons remain recorded in the export but are not simulated. This preserves independent playable channels without pretending that unknown transmitter signs can be recovered from synapse counts. All simulated connections remain measured connections.
+
+
+## Anatomical context shells (2026-09-12)
+
+Imported from the user's [MaleCNS Neuroglancer scene](https://neuroglancer-demo.appspot.com/#!gs://flyem-male-cns/v1.0/male-cns-v1.0.json): `fullbrain-major-shells` segments 1–3 and `vnc-neuropil-shell-v2` segment 1. These are the real ROI shells, not invented ellipsoids. Source fragment URLs, original SHA-256 hashes, output bounds and geometry counts are recorded in `public/data/brain-shells.json`. Same MaleCNS attribution and CC-BY-4.0 license as above.
+
+Reproduce with `python scripts/build_brain_mesh.py` (requires NumPy and public network access). The script decodes Neuroglancer legacy single-resolution meshes, converts nm to the SWC 8-nm coordinate units, and applies the exact recorded circuit center and scale. It clusters vertices into 0.012-unit cells, averages their positions and removes degenerate faces to create a lightweight context mesh. Four output binaries total approximately 2 MB. Each binary contains little-endian vertex/index counts, Float32 positions and Uint32 indices. The renderer applies one additional shared transform to BOTH shells and skeletons.
+
+The surface shader responds only near the moving pulse locations of simulated spike events. It uses a spatially limited falloff, a short decay, and a local ripple. Shells are not themselves electrically simulated: the glow is an illustrative proximity projection, not voltage measurements or a claim that spikes travel over the brain exterior. No random whole-brain activation is added. The VNC shell is included because much of the selected motor circuit is in the ventral nerve cord.
+
+The physical keyboard now has six keys, while the underlying ten motor pathways and measured edges remain intact. W and O each stimulate two wingbeat pathways; Q/P stimulate extent pathways, E/I stimulate pitch pathways. The remaining two brake pathways remain in the dataset but have no dedicated physical key in this layout.
