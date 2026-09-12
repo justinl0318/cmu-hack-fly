@@ -95,7 +95,7 @@ function SocialCard({
       const url = URL.createObjectURL(blob),
         a = document.createElement('a');
       a.href = url;
-      a.download = `flycircuit-${racer.name.replace(/[^a-z0-9_-]/gi, '_')}-card.${format}`;
+      a.download = `linkedfly-${racer.name.replace(/[^a-z0-9_-]/gi, '_')}-card.${format}`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch {
@@ -216,16 +216,12 @@ export default function SocialCards({
       className="social-results"
       aria-label="Race results and social cards"
     >
-      <div className="eyebrow">THE RACE ENDS. THE CONVERSATION STARTS.</div>
+      <div className="eyebrow">Race results</div>
       <h2>
         {finishers.map((p) => p.name).join(' & ') || 'Your crew'}{' '}
         {finishers.length > 1 ? 'tie for the win!' : 'takes the win!'}
       </h2>
-      <p>
-        One lap, shared memories. Meet your fellow pilots and keep their cards.
-        <br />
-        DNF means the race ended before that pilot reached the finish.
-      </p>
+      <p>DNF means the race ended before that pilot reached the finish.</p>
       <div className="social-cards-grid">
         {ranked.map((p) => (
           <SocialCard

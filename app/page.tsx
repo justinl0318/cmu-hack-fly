@@ -4,13 +4,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Activity,
   ArrowUpRight,
-  Bug,
   CircleHelp,
   Pause,
   Play,
   RotateCcw,
 } from 'lucide-react';
 import ProfileSetup from '@/components/ProfileSetup';
+import Brand from '@/components/Brand';
 import { normalizeProfile, type PlayerProfile } from '@/lib/profile';
 import MultiplayerGame from '@/components/MultiplayerGame';
 import BrainView, { type Circuit } from '@/components/BrainView';
@@ -332,12 +332,8 @@ export function SoloGame({ profile }: { profile: PlayerProfile }) {
   return (
     <main className="flight-lab">
       <header className="topbar">
-        <Link className="wordmark" href="/">
-          <Bug size={25} />
-          <span>
-            FLY<span className="muted">CIRCUIT</span>
-            <sup>01</sup>
-          </span>
+        <Link href="/" aria-label="LinkedFly home">
+          <Brand />
         </Link>
         <div className="experiment-tag">
           <span className="live-dot" /> MALECNS / MUSCLE CONTROL EXPERIMENT
@@ -354,10 +350,7 @@ export function SoloGame({ profile }: { profile: PlayerProfile }) {
       </header>
       <section className="title-row">
         <div>
-          <div className="eyebrow">A SMALL BRAIN. A DIFFICULT FLIGHT.</div>
-          <h1>
-            Learn to fly. <span>One muscle at a time.</span>
-          </h1>
+          <h1>Single player</h1>
         </div>
         <span className="dataset-badge">
           30 REAL NEURONS <ArrowUpRight size={14} />

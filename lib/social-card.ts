@@ -89,7 +89,7 @@ export function drawSocialCard(
   ctx.fillRect(0, 0, CARD_WIDTH, 8);
   ctx.fillStyle = '#cce79a';
   ctx.font = '600 16px sans-serif';
-  ctx.fillText('FLYCIRCUIT / THE FLY CLUB', 42, 48);
+  ctx.fillText('LinkedFly', 42, 48);
   ctx.fillStyle = '#f7f3e4';
   ctx.font = 'bold 36px sans-serif';
   lines(ctx, p.name, 42, 111, 535, 2, 40);

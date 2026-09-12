@@ -1,4 +1,4 @@
-# Fly Circuit
+# LinkedFly
 
 A browser-based QWOP-inspired fruit fly flight experiment. Six flight keys mapped to ten neural channels stimulate real MaleCNS pathways, and the resulting modeled motor activity drives arcade wing forces. It is a small connectome-based prototype, not a whole-brain emulation or validated fly biomechanics model.
 
@@ -63,35 +63,41 @@ CMU logo stickers on selected kitchen props use the original image from [CMU Bra
 
 ## Multiplayer demo (browser host, no separate game server)
 
-The creator is the host. The host browser runs every racer's neural worker, authoritative 60 Hz race simulation, lap counting, countdown and attack checks. Guests send only key states; approximately 30 snapshots per second are shared over WebRTC data channels. Opponent display positions are smoothed. There is no backend process to start, database, account, or server secret.
+The creator is the host. The host browser runs every racer's neural worker, authoritative 60 Hz race simulation, lap counting, countdown and attack checks. Guests send only key states; approximately 30 snapshots per second are shared. Opponent display positions are smoothed. There is no extra process to start, database, account, or server secret.
 
-**Internet is still required for room matching:** [PeerJS public PeerServer](https://peerjs.com/client/getting-started) exchanges connection metadata. This is not fully offline multiplayer. Restrictive NAT, campus client isolation, UDP restrictions, or public signaling outages can prevent connection. No guaranteed TURN relay is configured; use the same personal hotspot for the hackathon demo and test the actual laptops beforehand.
+**Two connection modes (both players must select the same mode):**
+
+- **Same website · LAN demo (recommended)** is selected automatically when the updated dev server is detected. The existing website forwards WebSocket messages on its own port; it does not simulate the race. This avoids browser-to-browser WebRTC/UDP restrictions and public room matching. Everyone must open the same website server. No Internet signaling service or extra command is needed after dependencies are installed. This relay is included in `npm run dev` only; it is not a production/Cloudflare backend.
+- **WebRTC · direct connection** preserves the original browser-to-browser mode. Internet access to the [PeerJS public PeerServer](https://peerjs.com/client/getting-started) is required for room matching. PeerJS includes default STUN/TURN endpoints, but their availability is not guaranteed. Campus isolation, NAT, VPNs and UDP restrictions may still prevent a channel opening. Loading the website does not prove this separate path is reachable.
 
 ### One computer, two windows
 
 1. Install Node 22.13+ and run `npm.cmd ci`, then `npm.cmd run dev` from this folder. On macOS/Linux use `npm` instead of `npm.cmd`. The `.cmd` form avoids PowerShell's `npm.ps1` execution-policy error without changing policy.
 2. Open `http://localhost:3000` in **two separate browser windows**, positioned side by side. Keep the host visible and do not minimize it. Chrome/Edge are suitable; no camera or microphone permission is needed.
-3. Window A: fill in the profile and choose an outfit → Multiplayer → Create room. Its eight-character code identifies the room, and the creator is automatically the host.
-4. Window B: choose a different name and outfit → Multiplayer → enter A's code → Join room. Both windows should show both players. Only A sees Start race; it enables at two players.
+3. Window A: fill in the profile and choose an outfit → Multiplayer → keep Same website selected → Create room. Its eight-character code identifies the room, and the creator is automatically the host.
+4. Window B: choose a different name and outfit → Multiplayer → select the same connection mode → enter A's code → Join room. Both windows should show both players. Only A sees Start race; it enables at two players.
 5. Click Start race in A. Both should show the same 3-second countdown, then race timer. Click the window to control that racer; hold W + O to take off. One keyboard controls only the focused window; use this test for connection and synchronization, and two laptops for simultaneous play.
 6. When the first player completes one lap, everyone immediately sees results and social cards; unfinished players are marked DNF. The host can choose Race again. A guest closing its window is removed from the room. Closing/reloading/leaving the host ends the room and guests see an error. Recreate a room to play again.
 
-### Multiple computers: easiest option
+### Multiple computers: separate website on each computer (WebRTC only)
 
-Each computer checks out the **same version**, runs `npm.cmd ci` and `npm.cmd run dev`, and opens its own `http://localhost:3000`. Join the creator's room code normally. WebRTC connects the browsers even though each serves its own web page. This avoids Windows HTTP firewall setup and only requires the laptops to reach the public signaling service and each other.
+Each computer checks out the **same version**, runs `npm.cmd ci` and `npm.cmd run dev`, and opens its own `http://localhost:3000`. Both MUST change Connection mode to **WebRTC** before creating/joining a room. Separate local website servers have separate Same website room lists. This option requires the laptops to reach the public signaling service and each other; prefer the shared website method below if cross-device WebRTC times out.
 
-### Multiple computers: serve the page from one laptop
+### Multiple computers: shared website (recommended for the demo)
 
 On the laptop serving the page:
 
 ```powershell
+npm.cmd ci
 npm.cmd run dev -- --hostname 0.0.0.0
 ipconfig
 ```
 
-Find the Wi-Fi IPv4 address, e.g. `192.168.1.23`. Other laptops on the same LAN open `http://192.168.1.23:3000`, choose Multiplayer, and join the room code. Use the port printed by the dev command if it differs. If Windows prompts, permit Node on the trusted **Private** network. Do not disable the firewall. If the page is inaccessible, use the per-computer localhost method above. The laptop serving the web page and the player creating the room need not be the same machine: the **Create room** player is always the simulation host.
+Find the Wi-Fi IPv4 address, e.g. `172.26.101.153`. ALL players open `http://172.26.101.153:3000`, choose Multiplayer, and select **Same website · LAN demo**. One player creates a NEW room and shares its code; the others join. Use the actual current address/port printed by the dev command if different. After this update, restart the dev command and refresh every browser; old WebRTC codes are not LAN codes. If the Same website option is absent, confirm the updated server is running: `/__fly_room/status` should return `{"available":true,"protocol":3}`.
 
-No SSH is necessary. SSH transports a web page only if you arrange tunneling; it does not implement game synchronization or replace WebRTC connectivity.
+If Windows prompts, permit Node on the trusted **Private** network. Do not disable the firewall. The website needs to be reachable from each computer, including its WebSocket endpoint on the same port. The laptop serving the web page and the player creating the room need not be the same machine: the **Create room** player is always the simulation host. Keep both the website process and the host browser open. The development relay is an in-memory demo transport; restarting it removes its rooms.
+
+No SSH is necessary. The Same website mode already uses the reachable website connection for game messages.
 
 ### Combat and race rules
 
@@ -105,9 +111,11 @@ No SSH is necessary. SSH transports a web page only if you arrange tunneling; it
 
 Before presenting, verify two names appear in both lobbies, countdown/timer agree, both flies move on both screens, F visibly stuns a nearby opponent, food boosts, one lap → shared results and social cards, and leaving the host reports that the room ended. Test invalid room codes and joining a race already in progress. Keep laptops plugged in and the host window visible: browser background throttling/sleep can slow the host simulation. The prototype has no host migration, reconnection into an active race, persistent rooms, or anti-cheat protection against the host. For a reliable live demo, use 2–4 laptops on the same tested hotspot; the eight-player cap is not a measured capacity guarantee.
 
-If the room times out: confirm Internet access and the eight-character code, recreate the room, use the same hotspot, and temporarily leave VPN routing if permitted by your environment. If public signaling is unavailable, single player still works; this version does not claim an offline room-code fallback.
+If the room times out, first check the connection mode on BOTH computers. For Same website, check that both URLs reach the same updated dev process; restart it and recreate the room. For WebRTC, stage 1 means public matching, stage 2 means opening the ICE/data channel, and stage 3 means host admission. Switch BOTH players to Same website if stage 2 stalls. Negotiation allows 45 seconds, and the host's separate 10-second admission deadline now starts only after the channel opens. A failed guest negotiation no longer destroys the host room. If a campus network blocks access to the website itself, try a shared phone hotspot; the IP address will change.
 
-Verified in this implementation: 32 automated tests, TypeScript checks, production build, and a real two-window WebRTC room over the local LAN URL (create/join, host-only start, shared clock, host exit notification). A temporary test fixture also triggered the host finish state and verified that the guest received both profiles, customized appearances, recorded neural clips, winner statistics and DNF through the real connection. The fixture was removed after testing; normal finish detection is covered by the automated lap test. Simultaneous human flight/combat on separate physical laptops and eight-player load still need the checklist above.
+Verified in this implementation: 36 automated tests, TypeScript checks, scoped lint and production build. The new relay test checks real WebSocket clients, large result payloads, room isolation and host departure; timer tests cover slow ICE negotiation and cancellation after admission. Browser QA on the actual LAN URL verified Same website create/join, two-player roster, host-only start, identical race clocks and host exit notification. The relay uses the `vite-flycircuit-v3` subprotocol so Cloudflare's dev plugin leaves its upgrade requests to this local plugin instead of also forwarding and closing them.
+
+Earlier WebRTC QA verified create/join, host-only start, shared clock and host exit notification. A temporary test fixture also triggered the host finish state and verified that the guest received both profiles, customized appearances, recorded neural clips, winner statistics and DNF through the real connection. The fixture was removed after testing; normal finish detection is covered by the automated lap test. Simultaneous human flight/combat on separate physical laptops and eight-player load still need the checklist above.
 
 ## Profiles, outfits and post-race social cards
 

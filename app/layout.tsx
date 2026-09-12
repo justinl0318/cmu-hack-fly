@@ -13,7 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Fly Circuit — Muscle Racer', description: 'A QWOP-inspired flight experiment. Stimulate ten muscle channels through real fruit fly neuron anatomy.',
+  title: 'LinkedFly',
+  description:
+    'Multiplayer fly racing with customizable flies and player social cards.',
+  icons: { icon: { url: '/linkedfly-logo.png', type: 'image/png' } },
 };
 
 export default function RootLayout({

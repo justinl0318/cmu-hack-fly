@@ -7,6 +7,7 @@ import { createFlightState } from '@/lib/simulation';
 import type { RaceSnapshot } from '@/lib/battle';
 import type { PlayerProfile } from '@/lib/profile';
 import SocialCards from './SocialCards';
+import Brand from './Brand';
 import type { PeerRoom } from '@/lib/peer-room';
 
 export default function MultiplayerGame({
@@ -24,11 +25,33 @@ export default function MultiplayerGame({
   const [race, setRace] = useState<RaceSnapshot | null>(null);
   const [circuit, setCircuit] = useState<Circuit | null>(null);
   const [pressed, setPressed] = useState<string[]>([]);
+  const [transport, setTransport] = useState<'lan' | 'webrtc'>('webrtc');
+  const [relayAvailable, setRelayAvailable] = useState(false);
+  const [transportReady, setTransportReady] = useState(false);
   const room = useRef<PeerRoom | null>(null);
   const held = useRef(new Set<string>());
   const alive = useRef(true);
   useEffect(() => {
     alive.current = true;
+    const abort = new AbortController();
+    const probeTimeout = setTimeout(() => abort.abort(), 3000);
+    fetch('/__fly_room/status', { signal: abort.signal, cache: 'no-store' })
+      .then((r) =>
+        r.ok
+          ? (r.json() as Promise<{ available?: boolean; protocol?: number }>)
+          : null,
+      )
+      .then((info) => {
+        if (alive.current && info?.available === true && info?.protocol === 3) {
+          setRelayAvailable(true);
+          setTransport('lan');
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        clearTimeout(probeTimeout);
+        if (alive.current) setTransportReady(true);
+      });
     fetch('/data/circuit.json')
       .then((r) => {
         if (!r.ok) throw Error();
@@ -38,6 +61,8 @@ export default function MultiplayerGame({
       .catch(() => setMessage('Circuit failed to load. Reload this page.'));
     return () => {
       alive.current = false;
+      abort.abort();
+      clearTimeout(probeTimeout);
       room.current?.close();
     };
   }, []);
@@ -102,8 +127,10 @@ export default function MultiplayerGame({
         (m, ok) => {
           if (!alive.current) return;
           setMessage(m);
-          setConnecting(false);
-          setConnected(!!ok);
+          if (ok !== undefined) {
+            setConnecting(false);
+            setConnected(ok);
+          }
           if (ok && room.current)
             setSession({
               id: room.current.id,
@@ -111,6 +138,7 @@ export default function MultiplayerGame({
               host: room.current.host,
             });
         },
+        transport,
       );
     } catch {
       setConnecting(false);
@@ -130,7 +158,7 @@ export default function MultiplayerGame({
   return (
     <main className="flight-lab">
       <header className="topbar">
-        <strong>FLYCIRCUIT / MULTIPLAYER</strong>
+        <Brand />
         <button
           className="quiet-button"
           onClick={() => {
@@ -144,9 +172,7 @@ export default function MultiplayerGame({
       <section className="title-row">
         <div>
           <div className="eyebrow">KITCHEN COUNTER CHAOS</div>
-          <h1>
-            One lap. <span>One buzzing rivalry.</span>
-          </h1>
+          <h1>Multiplayer</h1>
         </div>
       </section>
       <output className="room-message">
@@ -161,9 +187,24 @@ export default function MultiplayerGame({
             Flying as <strong>{profile.name}</strong> · use Back to edit your
             profile and outfit.
           </p>
+          <label>
+            Connection mode
+            <select
+              value={transport}
+              disabled={connecting || !transportReady}
+              onChange={(e) => setTransport(e.target.value as 'lan' | 'webrtc')}
+            >
+              {relayAvailable && (
+                <option value="lan">
+                  Same website · LAN demo (recommended)
+                </option>
+              )}
+              <option value="webrtc">WebRTC · direct connection</option>
+            </select>
+          </label>
           <button
             className="primary-button"
-            disabled={!circuit || connecting}
+            disabled={!circuit || connecting || !transportReady}
             onClick={() => connect(true)}
           >
             Create room
@@ -181,12 +222,42 @@ export default function MultiplayerGame({
           </label>
           <button
             className="primary-button"
-            disabled={!circuit || connecting || code.length !== 8}
+            disabled={
+              !circuit || connecting || !transportReady || code.length !== 8
+            }
             onClick={() => connect(false)}
           >
             Join room
           </button>
-          <p>No separate game server. Room matching needs Internet access.</p>
+          <p>
+            {transport === 'lan'
+              ? 'Both players: open this same website and select Same website. The existing website forwards messages; the room creator still runs the race. No extra command or Internet room-matching service needed.'
+              : 'WebRTC room matching needs Internet access. Both players must select WebRTC.'}
+          </p>
+          <details>
+            <summary>Having trouble joining?</summary>
+            <p>
+              Room protocol v3. Reload BOTH computers and create a new room
+              after an update. Keep the host tab open and visible.
+            </p>
+            <p>
+              The website and the game connection use different network paths.
+              If stage 2 (WebRTC / ICE) stalls, try both computers on one phone
+              hotspot. Campus Wi-Fi or VPN restrictions can block peer traffic
+              even when this website loads.
+            </p>
+            <p>
+              Wait up to 45 seconds for the connection. If it fails, share the
+              full status message above.
+            </p>
+            {relayAvailable && (
+              <p>
+                For LAN demos, select Same website on BOTH computers to bypass
+                WebRTC. Room codes do not cross between the two connection
+                modes.
+              </p>
+            )}
+          </details>
         </section>
       )}
       {race?.phase === 'results' && race.results && circuit && (
@@ -218,6 +289,9 @@ export default function MultiplayerGame({
               Copy code
             </button>
             <span>{race.players.length} / 8 flies</span>
+            <span>
+              {transport === 'lan' ? 'Same website · LAN demo' : 'WebRTC'}
+            </span>
             {session.host &&
               (race.phase === 'lobby' || race.phase === 'results') && (
                 <button

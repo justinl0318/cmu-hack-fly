@@ -1,5 +1,6 @@
 'use client';
 import Image from 'next/image';
+import Brand from './Brand';
 import { useEffect, useState } from 'react';
 import {
   FLY_COLORS,
@@ -8,6 +9,34 @@ import {
   type PlayerProfile,
 } from '@/lib/profile';
 import { flyPortrait } from '@/lib/fly-model';
+
+const DEMO_BACKGROUNDS = [
+  {
+    school: 'CMU MSCV ’27',
+    interests: 'Computer Vision · Robotics · RL',
+    bio: 'Building robots that see, learn, and explore. Looking for teammates who enjoy vision, reinforcement learning, and hands-on demos.',
+  },
+  {
+    school: 'CMU MHCI ’27',
+    interests: 'HCI · Product Design · Accessibility',
+    bio: 'Designing playful, accessible experiences. I love prototyping ideas and teaming up with people who care about how technology feels.',
+  },
+  {
+    school: 'CMU MSCS ’27',
+    interests: 'Distributed Systems · Backend · Open Source',
+    bio: 'Turning ambitious ideas into working systems. Always up for building multiplayer apps, exploring infrastructure, and sharing open-source projects.',
+  },
+  {
+    school: 'CMU MSE ’27',
+    interests: 'Full-stack · AI Apps · Entrepreneurship',
+    bio: 'Building useful AI products from prototype to launch. Looking for collaborators who enjoy fast experiments and solving everyday problems.',
+  },
+  {
+    school: 'CMU MET ’27',
+    interests: 'Game Development · 3D Art · Interactive Media',
+    bio: 'Making games and interactive worlds. I enjoy mixing art with code and meeting people who want to create something unexpected.',
+  },
+];
 
 export function FlyPortrait({ profile }: { profile: PlayerProfile }) {
   const [url, setUrl] = useState('');
@@ -41,7 +70,7 @@ export function FlyPortrait({ profile }: { profile: PlayerProfile }) {
           alt={`${profile.name}'s fly: ${color}, ${hat} hat, ${shoes}`}
         />
       )}
-      <span>{error || 'YOUR FLY · YOUR STYLE'}</span>
+      {error && <span>{error}</span>}
     </div>
   );
 }
@@ -55,8 +84,17 @@ export default function ProfileSetup({
 }) {
   const [profile, setProfile] = useState(initial);
   const [error, setError] = useState('');
+  const [demoIndex, setDemoIndex] = useState(-1);
   const set = (key: keyof Omit<PlayerProfile, 'look'>, value: string) =>
     setProfile((p) => ({ ...p, [key]: value }));
+  function fillDemoResume() {
+    const choices = DEMO_BACKGROUNDS.map((_, index) => index).filter(
+      (index) => index !== demoIndex,
+    );
+    const index = choices[Math.floor(Math.random() * choices.length)];
+    setProfile((p) => ({ ...p, ...DEMO_BACKGROUNDS[index] }));
+    setDemoIndex(index);
+  }
   function start(mode: 'single' | 'multi') {
     if (
       [profile.profileUrl, profile.connectUrl].some(
@@ -77,24 +115,16 @@ export default function ProfileSetup({
   return (
     <main className="flight-lab garage">
       <header className="topbar">
-        <strong>FLYCIRCUIT / THE FLY CLUB</strong>
-        <span className="eyebrow">ONE LAP. NEW CONNECTIONS.</span>
+        <Brand />
+        <span className="brand-slogan">
+          Connect on the <span className="linkedfly-gold">FLY</span>
+        </span>
       </header>
-      <section className="title-row">
-        <div>
-          <div className="eyebrow">BEFORE YOU TAKE OFF</div>
-          <h1>
-            A little fly.
-            <br />
-            <span>A whole personality.</span>
-          </h1>
-          <p>Make a fly, race a lap, meet the people behind the wings.</p>
-        </div>
-      </section>
+      <h1 className="sr-only">Player setup</h1>
       <div className="garage-grid">
         <section className="garage-avatar">
           <FlyPortrait profile={profile} />
-          <h2>Dress for the finish line.</h2>
+          <h2>Fly appearance</h2>
           <fieldset>
             <legend>Body color</legend>
             <div className="color-swatches">
@@ -168,8 +198,7 @@ export default function ProfileSetup({
           </div>
         </section>
         <section className="profile-fields">
-          <div className="eyebrow">YOUR POST-RACE SOCIAL CARD</div>
-          <h2>Put a person behind the pilot.</h2>
+          <h2>Player profile</h2>
           <label>
             Display name
             <input
@@ -197,15 +226,35 @@ export default function ProfileSetup({
               onChange={(e) => set('interests', e.target.value)}
             />
           </label>
-          <label>
-            A little about you
+          <div className="resume-field">
+            <div className="resume-heading">
+              <label htmlFor="profile-bio">A little about you</label>
+              <button
+                type="button"
+                className="quiet-button"
+                onClick={fillDemoResume}
+                aria-describedby="resume-demo-note"
+              >
+                Upload resume <span className="resume-demo-badge">Demo</span>
+              </button>
+            </div>
+            <p id="resume-demo-note" className="profile-note">
+              Demo only — fills sample education, interests and bio. No file is
+              uploaded.
+            </p>
             <textarea
+              id="profile-bio"
               maxLength={160}
               value={profile.bio}
               placeholder="Building cool things with robots & vision."
               onChange={(e) => set('bio', e.target.value)}
             />
-          </label>
+            <output className="profile-note">
+              {demoIndex >= 0
+                ? 'Sample background filled. Edit any field, or click again for another example.'
+                : ''}
+            </output>
+          </div>
           <div className="accessory-grid">
             <label>
               Profile link (optional)

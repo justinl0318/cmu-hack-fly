@@ -11,7 +11,7 @@
     "start": "wrangler dev --config dist/server/wrangler.json",
     "lint": "oxlint",
     "format": "oxfmt",
-    "test": "node --experimental-strip-types --test lib/simulation.test.ts lib/replay.test.ts lib/battle.test.ts lib/profile.test.ts"
+    "test": "node --experimental-strip-types --test lib/simulation.test.ts lib/replay.test.ts lib/battle.test.ts lib/profile.test.ts lib/room-connection.test.ts server/demo-relay.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",
@@ -46,6 +46,7 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@types/three": "^0.186.0",
+    "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "6.0.2",
     "@vitejs/plugin-rsc": "0.5.26",
     "oxfmt": "0.61.0",
@@ -54,7 +55,8 @@
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
     "vite": "8.0.13",
-    "wrangler": "4.92.0"
+    "wrangler": "4.92.0",
+    "ws": "^8.21.3"
   },
   "type": "module"
 }
