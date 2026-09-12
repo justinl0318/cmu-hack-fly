@@ -10,7 +10,8 @@ A browser-based QWOP-inspired fruit fly flight experiment. Six flight keys mappe
 - [turn right demo](https://drive.google.com/file/d/1jEIVXqec-JOWtbRCFTd9c5SD4zTQFyl3/view)
 
 ## Slides
-[sildes](https://canva.link/r8njx12wig71yi9)
+
+[![View our slides](slides-preview.jpg)](https://canva.link/r8njx12wig71yi9)
 
 ## Run
 
