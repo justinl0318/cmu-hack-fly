@@ -1,5 +1,23 @@
 # LinkedFly
 
+**Connect on the fly.**
+
+### Networking apps show profiles, not people
+
+Titles, credentials, and polished bios tell you what someone has done, not how they think, react, or collaborate. A connection request creates a contact, not a relationship, and a cold message gives a stranger little reason to respond.
+
+People build real connections through shared experience, not shared profiles. So we asked: what if your profile could think?
+
+LinkedFly turns your profile into a fruit fly driven by a real brain, your interactions into neural activity, and your shared race into a networking card.
+
+Under the hood is **MaleCNS v1.0**, the first complete connectome of an adult fruit fly's brain and ventral nerve cord: 166,700 neurons, 125 million synapses, and 11,710 identified cell types, mapped by Google Research, HHMI Janelia, and their collaborators from millions of electron-microscope images. Your keystrokes stimulate real modeled pathways, and the resulting spikes drive flight while lighting up the actual brain morphology in real time.
+
+Instead of meeting through a cold message, players meet inside a shared race. Every attack, dodge, and recovery leaves a neural trace, and when the race ends, that trace becomes part of a networking card built from what actually happened: a bio, a race time, a top speed, and a neural style drawn from how you played.
+
+**Don't just view a profile. Experience the person.**
+
+## What it is
+
 A browser-based QWOP-inspired fruit fly flight experiment. Six flight keys mapped to ten neural channels stimulate real MaleCNS pathways, and the resulting modeled motor activity drives arcade wing flight and kitchen racing.
 
 ## Demo video
