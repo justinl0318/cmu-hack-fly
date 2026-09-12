@@ -1131,6 +1131,25 @@ h1 span {
   color: #97afa0;
   line-height: 1.6;
 }
+.outfit-note {
+  display: block;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid #344a3f;
+  border-radius: 12px;
+  background: #11201c;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #dcefac;
+}
+.outfit-note strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #97afa0;
+}
 .garage-actions {
   display: flex;
   gap: 16px;

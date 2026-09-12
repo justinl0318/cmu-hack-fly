@@ -11,7 +11,7 @@
     "start": "wrangler dev --config dist/server/wrangler.json",
     "lint": "oxlint",
     "format": "oxfmt",
-    "test": "node --experimental-strip-types --test lib/simulation.test.ts lib/replay.test.ts lib/battle.test.ts lib/profile.test.ts lib/room-connection.test.ts server/demo-relay.test.ts"
+    "test": "node --experimental-strip-types --test lib/simulation.test.ts lib/replay.test.ts lib/battle.test.ts lib/profile.test.ts lib/outfit.test.ts lib/room-connection.test.ts server/demo-relay.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",

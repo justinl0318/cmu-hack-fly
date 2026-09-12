@@ -9,6 +9,7 @@ import {
   type PlayerProfile,
 } from '@/lib/profile';
 import { flyPortrait } from '@/lib/fly-model';
+import { explainOutfit, randomOutfit } from '@/lib/outfit';
 
 const DEMO_BACKGROUNDS = [
   {
@@ -85,6 +86,7 @@ export default function ProfileSetup({
   const [profile, setProfile] = useState(initial);
   const [error, setError] = useState('');
   const [demoIndex, setDemoIndex] = useState(-1);
+  const [outfitNote, setOutfitNote] = useState('');
   const set = (key: keyof Omit<PlayerProfile, 'look'>, value: string) =>
     setProfile((p) => ({ ...p, [key]: value }));
   function fillDemoResume() {
@@ -92,7 +94,10 @@ export default function ProfileSetup({
       (index) => index !== demoIndex,
     );
     const index = choices[Math.floor(Math.random() * choices.length)];
-    setProfile((p) => ({ ...p, ...DEMO_BACKGROUNDS[index] }));
+    const background = DEMO_BACKGROUNDS[index];
+    const outfit = randomOutfit(profile.look);
+    setProfile((p) => ({ ...p, ...background, look: outfit }));
+    setOutfitNote(explainOutfit(background, outfit));
     setDemoIndex(index);
   }
   function start(mode: 'single' | 'multi') {
@@ -124,6 +129,12 @@ export default function ProfileSetup({
       <div className="garage-grid">
         <section className="garage-avatar">
           <FlyPortrait profile={profile} />
+          {outfitNote && (
+            <output className="outfit-note" aria-live="polite">
+              <strong>Why this outfit</strong>
+              {outfitNote}
+            </output>
+          )}
           <h2>Fly appearance</h2>
           <fieldset>
             <legend>Body color</legend>
@@ -239,7 +250,8 @@ export default function ProfileSetup({
               </button>
             </div>
             <p id="resume-demo-note" className="profile-note">
-              Demo only — fills sample education, interests and bio. No file is
+              Demo only — fills sample education, interests and bio, picks a
+              random color and outfit, and explains why they fit. No file is
               uploaded.
             </p>
             <textarea
@@ -251,7 +263,7 @@ export default function ProfileSetup({
             />
             <output className="profile-note">
               {demoIndex >= 0
-                ? 'Sample background filled. Edit any field, or click again for another example.'
+                ? 'Sample background and outfit filled. Edit any field, or click again for another example.'
                 : ''}
             </output>
           </div>
